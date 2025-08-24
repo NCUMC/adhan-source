@@ -72,19 +72,24 @@ export default defineComponent({
   },
   methods: {
     clusterSet (dateNum) {
-      if (dateNum < 11) return 1
-      else if (dateNum < 21) return 2
-      else return 3
+      if (dateNum < 11) return 0  // Changed from 1 to 0 for array indexing
+      else if (dateNum < 21) return 1  // Changed from 2 to 1
+      else return 2  // Changed from 3 to 2
     },
     updateDailyTime () {
       var offset = this.offset
-      var prayerTime = Object.assign({} ,prayerData[this.month])
+      // Updated to work with new nested format
+      var monthData = prayerData[this.month] || []
+      var dayData = monthData[this.dateCluster] || {}
       var prayerNames = Object.assign({} ,this.prayerNames)
       var checkTomorrow = true
       var foundPrayer = false
+      
       for (var idx in prayerNames) {
         let name = prayerNames[idx]
-        var parts = prayerTime[name+this.dateCluster].split(':')
+        // Get time from the new format (direct prayer name)
+        var timeString = dayData[name] || '00:00'
+        var parts = timeString.split(':')
         var minute = parseInt(parts[1])
         var hour = parseInt(parts[0])
         var minutes = hour*60 + minute + parseInt(offset)
