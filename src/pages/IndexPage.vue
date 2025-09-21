@@ -1,41 +1,67 @@
 <template>
   <q-page class="">
     <!-- Toolbar with clock, avatar, and drawer button -->
-    <div class="row items-center q-pa-md bg-white">
-      <div class="col">
-        <div class="text-h1 text-black q-my-md q-px-none">
-          {{ currentTime }}
-        </div>
-      </div>
-      <div class="col-auto">
-        <q-avatar size="sm" class="q-ml-md cursor-pointer" @click="toggleRightDrawer">
+    <div class="row items-center">
+      <div class="col-sm-4 col-12 text-center">
+        <q-avatar size="xl" class="cursor-pointer q-my-sm" @click="toggleRightDrawer">
           <q-img src="icons/icon-256x256.png"/>
         </q-avatar>
-        <q-btn dense flat round icon="menu" @click="toggleRightDrawer" class="q-ml-sm" />
       </div>
+       <div class="col-sm-8 col-12 bg-grey-10">
+         <div class="row items-center q-py-md">
+           <div class="col text-left">
+             <div class="text-h1 text-white q-pl-xl">
+               {{ currentTime }}
+             </div>
+           </div>
+           <div class="col text-right">
+             <div class="text-h5 text-white q-pr-xl">
+               {{ currentDay }}
+             </div>
+             <div class="text-h5 text-white q-pr-xl">
+               {{ currentDate }}
+             </div>
+             <div class="text-h5 text-white q-pr-xl">
+               {{ hijriDate }}
+             </div>
+           </div>
+         </div>
+       </div>
     </div>
 
     <!-- Settings Drawer Component -->
     <SettingsDrawer 
       v-model="rightDrawerOpen" 
       :offset="offset" 
+      :hijri-offset="hijriOffset"
       @update:offset="updateOffset"
+      @update:hijri-offset="updateHijriOffset"
+      @refresh-hijri-data="refreshHijriData"
     />
 
     <div class="row">
-      <div class="col-md-8 col-sm-6 col-xs-12">
+      <div class="col-sm-4 col-xs-12 bg-secondary">
         <div class="full-width" v-for="(time, name) in currentPrayerTime" :key="name">
-          <q-card bordered flat :class="'my-card text-center q-ma-sm radius-5 ' + (upcomingPrayer === name ? 'bg-secondary text-white' : '')">
+          <q-card flat :class="'my-card text-center q-ma-sm radius-5 ' + (upcomingPrayer === name ? 'bg-white' : 'bg-secondary text-white')">
             <q-card-section class="q-py-sm ">
-              <div class="text-subtitle1 text-capitalize text-bold">
+              <div class="text-h6 text-capitalize text-bold">
                 {{name}}
-                <span v-if="upcomingPrayer === name" class="text-subtitle1 text-lowercase">| in {{upcomingHour}} hours {{upcomingMinute}} minutes</span>
+                <span v-if="upcomingPrayer === name" class="text-h6 text-lowercase">| in {{upcomingHour}} hours {{upcomingMinute}} minutes</span>
               </div>
-              <div class="text-h4">{{time}}</div>
+              <div class="text-h3">{{time}}</div>
             </q-card-section>
           </q-card>
         </div>
       </div>
+       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center">
+         <div>
+           <div class="text-h3">{{upcomingPrayer}} in</div>
+           <div class="text-h1">{{String(upcomingHour).padStart(2, '0')}}:{{String(upcomingMinute).padStart(2, '0')}}</div>
+         </div>
+       </div>
+    </div>
+    <div class="row">
+      <div class="col bg-orange-1 text-center q-py-md">Be Quiet</div>
     </div>
     <!-- <q-page-sticky v-show="!notifEnabled" position="bottom-right" :offset="[18, 18]">
       <q-btn @click="requestNotif" fab icon="notifications" color="secondary" />
@@ -62,6 +88,63 @@ export default defineComponent({
   setup(props, { emit }) {
     const rightDrawerOpen = ref(false)
     const currentTime = ref('')
+    const currentDay = ref('')
+    const currentDate = ref('')
+    const hijriDate = ref('')
+    const hijriOffset = ref(0)
+
+    // Load Hijri offset from localStorage
+    const loadHijriOffset = () => {
+      try {
+        const saved = localStorage.getItem('hijriOffset')
+        hijriOffset.value = saved ? parseInt(saved) : 0
+      } catch (err) {
+        console.log('Error loading Hijri offset:', err)
+        hijriOffset.value = 0
+      }
+    }
+
+    // Calculate Hijri date
+    const calculateHijriDate = (gregorianDate) => {
+      // Simple approximation - in production, you'd want to use a proper Hijri calendar library
+      // This is a basic calculation that can be adjusted with the offset
+      const epoch = new Date(622, 6, 16) // July 16, 622 CE (1 Muharram, 1 AH)
+      const diffTime = gregorianDate - epoch
+      let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      // Apply offset to days (not years)
+      diffDays += hijriOffset.value
+      
+      // Approximate Hijri year (354.37 days per year)
+      const hijriYear = Math.floor(diffDays / 354.37) + 1
+      
+      // Calculate remaining days for month/day
+      const remainingDays = diffDays - ((hijriYear - 1) * 354.37)
+      let hijriMonth = Math.floor(remainingDays / 29.5) + 1
+      let hijriDay = Math.floor(remainingDays % 29.5) + 1
+      
+      // Ensure month is within valid range (1-12)
+      if (hijriMonth < 1) {
+        hijriMonth = 12
+      } else if (hijriMonth > 12) {
+        hijriMonth = 1
+      }
+      
+      // Ensure day is within valid range (1-30)
+      if (hijriDay < 1) {
+        hijriDay = 30
+      } else if (hijriDay > 30) {
+        hijriDay = 1
+      }
+      
+      const monthNames = [
+        'Muharram', 'Safar', 'Rabi\' al-awwal', 'Rabi\' al-thani',
+        'Jumada al-awwal', 'Jumada al-thani', 'Rajab', 'Sha\'ban',
+        'Ramadan', 'Shawwal', 'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
+      ]
+      
+      return `${Math.floor(hijriDay)} ${monthNames[Math.floor(hijriMonth) - 1]} ${Math.floor(hijriYear)}H`
+    }
 
     const updateTime = () => {
       const now = new Date()
@@ -69,6 +152,18 @@ export default defineComponent({
       const minutes = String(now.getMinutes()).padStart(2, '0')
       const seconds = String(now.getSeconds()).padStart(2, '0')
       currentTime.value = `${hours}:${minutes}:${seconds}`
+      
+      // Format date as "Day, Month DD, YYYY"
+      const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }
+      currentDate.value = now.toLocaleDateString('en-US', options)
+      currentDay.value = now.toLocaleDateString('en-US', {weekday: 'long'})
+      
+      // Calculate Hijri date
+      hijriDate.value = calculateHijriDate(now)
     }
 
     const toggleRightDrawer = () => {
@@ -79,12 +174,34 @@ export default defineComponent({
       emit('update:offset', newOffset)
     }
 
+    const updateHijriOffset = (newOffset) => {
+      hijriOffset.value = newOffset
+      localStorage.setItem('hijriOffset', newOffset)
+      updateTime() // Refresh the date display
+    }
+
+    const refreshHijriData = () => {
+      // Clear any cached data and refresh
+      localStorage.removeItem('hijriDateCache')
+      localStorage.removeItem('hijriDateLastUpdate')
+      updateTime() // Refresh the date display
+    }
+
+    // Initialize Hijri offset
+    loadHijriOffset()
+
     return {
       rightDrawerOpen,
       currentTime,
+      currentDay,
+      currentDate,
+      hijriDate,
+      hijriOffset,
       updateTime,
       toggleRightDrawer,
-      updateOffset
+      updateOffset,
+      updateHijriOffset,
+      refreshHijriData
     }
   },
   data () {

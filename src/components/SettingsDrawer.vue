@@ -18,22 +18,45 @@
       <div class="text-h5 q-mt-md">
         Settings
       </div>
-      <label>Location</label>
-      <q-select 
-        dense 
-        filled 
-        bg-color="white" 
-        emit-value 
-        map-options 
-        v-model="localOffset" 
-        label-color="white" 
-        :options="locationList"
-        @update:model-value="updateOffset"
-      />
-      
-      <div class="text-h5 q-mt-lg">
-        Export
-      </div>
+        <label>Location</label>
+        <q-select 
+          dense 
+          filled 
+          bg-color="white" 
+          emit-value 
+          map-options 
+          v-model="localOffset" 
+          label-color="white" 
+          :options="locationList"
+          @update:model-value="updateOffset"
+        />
+        
+        <div class="text-h5 q-mt-lg">
+          Hijri Date
+        </div>
+        <label>Date Adjustment (Days)</label>
+        <q-input 
+          dense 
+          filled 
+          bg-color="white" 
+          v-model.number="localHijriOffset" 
+          label-color="white" 
+          type="number"
+          hint="Adjust Hijri date (+/- days)"
+          @update:model-value="updateHijriOffset"
+        />
+        <q-btn 
+          @click="refreshHijriData" 
+          color="white" 
+          text-color="secondary"
+          icon="refresh" 
+          label="Refresh Date Data"
+          class="full-width q-mt-sm"
+        />
+        
+        <div class="text-h5 q-mt-lg">
+          Export
+        </div>
       <q-btn 
         @click="exportDailyCSV" 
         color="white" 
@@ -60,9 +83,13 @@ export default defineComponent({
     offset: {
       type: Number,
       default: 2
+    },
+    hijriOffset: {
+      type: Number,
+      default: 0
     }
   },
-  emits: ['update:modelValue', 'update:offset'],
+  emits: ['update:modelValue', 'update:offset', 'update:hijri-offset', 'refresh-hijri-data'],
   setup(props, { emit }) {
     const locationList = [
       {label: 'Taipei', value: 0},
@@ -89,12 +116,33 @@ export default defineComponent({
       }
     })
 
+    const localHijriOffset = computed({
+      get() {
+        return props.hijriOffset
+      },
+      set(value) {
+        emit('update:hijri-offset', value)
+      }
+    })
+
     const closeDrawer = () => {
       emit('update:modelValue', false)
     }
 
     const updateOffset = (newOffset) => {
       emit('update:offset', newOffset)
+    }
+
+    const updateHijriOffset = (newOffset) => {
+      emit('update:hijri-offset', newOffset)
+    }
+
+    const refreshHijriData = () => {
+      // Clear cached data and trigger refresh
+      localStorage.removeItem('hijriDateCache')
+      localStorage.removeItem('hijriDateLastUpdate')
+      // Emit event to parent to refresh
+      emit('refresh-hijri-data')
     }
 
     // Helper method to calculate cluster for date
@@ -107,7 +155,7 @@ export default defineComponent({
     // Helper method to calculate sunrise time (65 minutes after Fajr)
     const calculateSunrise = (fajrTime) => {
       const [hours, minutes] = fajrTime.split(':').map(Number)
-      let totalMinutes = hours * 60 + minutes + 65
+      let totalMinutes = hours * 60 + minutes + 70
       
       // Handle day overflow
       if (totalMinutes >= 24 * 60) {
@@ -235,8 +283,11 @@ export default defineComponent({
       locationList,
       isOpen,
       localOffset,
+      localHijriOffset,
       closeDrawer,
       updateOffset,
+      updateHijriOffset,
+      refreshHijriData,
       exportDailyCSV
     }
   }
