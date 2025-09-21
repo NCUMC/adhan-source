@@ -66,7 +66,7 @@
             </div>
             <div class="prayer-time">
               <div class="text-h3 lt-lg">{{ prayer.time }}</div>
-              <div class="gt-md text-weight-regular" style="font-size: 45pt;">{{ prayer.time }}</div>
+              <div class="gt-md text-weight-regular" style="font-size: 8vh;">{{ prayer.time }}</div>
             </div>
           </div>
         </div>
@@ -479,8 +479,13 @@ export default defineComponent({
 
     const updateTime = () => {
       const now = new Date()
-      const hours = String(now.getHours()).padStart(2, '0')
-      const minutes = String(now.getMinutes()).padStart(2, '0')
+      // Update the current hour and minute values first
+      currentHour.value = now.getHours()
+      currentMinute.value = now.getMinutes()
+      
+      // Format the time display
+      const hours = String(currentHour.value).padStart(2, '0')
+      const minutes = String(currentMinute.value).padStart(2, '0')
       const seconds = String(now.getSeconds()).padStart(2, '0')
       currentTime.value = `${hours}:${minutes}:${seconds}`
       
