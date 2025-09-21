@@ -1,16 +1,40 @@
 <template>
   <q-page class="">
-    <div class="row q-mx-md q-py-md">
-      <div class="col-md-4 col-sm-6 col-xs-12" v-for="(time, name) in currentPrayerTime" :key="name">
-        <q-card bordered flat :class="'my-card text-center q-ma-sm radius-5 ' + (upcomingPrayer === name ? 'bg-secondary text-white' : '')">
-          <q-card-section class="q-py-sm ">
-            <div class="text-subtitle1 text-capitalize text-bold">
-              {{name}}
-              <span v-if="upcomingPrayer === name" class="text-subtitle1 text-lowercase">| in {{upcomingHour}} hours {{upcomingMinute}} minutes</span>
-            </div>
-            <div class="text-h4">{{time}}</div>
-          </q-card-section>
-        </q-card>
+    <!-- Toolbar with clock, avatar, and drawer button -->
+    <div class="row items-center q-pa-md bg-white">
+      <div class="col">
+        <div class="text-h1 text-black q-my-md q-px-none">
+          {{ currentTime }}
+        </div>
+      </div>
+      <div class="col-auto">
+        <q-avatar size="sm" class="q-ml-md cursor-pointer" @click="toggleRightDrawer">
+          <q-img src="icons/icon-256x256.png"/>
+        </q-avatar>
+        <q-btn dense flat round icon="menu" @click="toggleRightDrawer" class="q-ml-sm" />
+      </div>
+    </div>
+
+    <!-- Settings Drawer Component -->
+    <SettingsDrawer 
+      v-model="rightDrawerOpen" 
+      :offset="offset" 
+      @update:offset="updateOffset"
+    />
+
+    <div class="row">
+      <div class="col-md-8 col-sm-6 col-xs-12">
+        <div class="full-width" v-for="(time, name) in currentPrayerTime" :key="name">
+          <q-card bordered flat :class="'my-card text-center q-ma-sm radius-5 ' + (upcomingPrayer === name ? 'bg-secondary text-white' : '')">
+            <q-card-section class="q-py-sm ">
+              <div class="text-subtitle1 text-capitalize text-bold">
+                {{name}}
+                <span v-if="upcomingPrayer === name" class="text-subtitle1 text-lowercase">| in {{upcomingHour}} hours {{upcomingMinute}} minutes</span>
+              </div>
+              <div class="text-h4">{{time}}</div>
+            </q-card-section>
+          </q-card>
+        </div>
       </div>
     </div>
     <!-- <q-page-sticky v-show="!notifEnabled" position="bottom-right" :offset="[18, 18]">
@@ -26,11 +50,43 @@
 </style>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import prayerData from 'assets/timetable.json'
+import SettingsDrawer from 'components/SettingsDrawer.vue'
 export default defineComponent({
   name: 'IndexPage',
+  components: {
+    SettingsDrawer
+  },
   props: ['offset'],
+  setup(props, { emit }) {
+    const rightDrawerOpen = ref(false)
+    const currentTime = ref('')
+
+    const updateTime = () => {
+      const now = new Date()
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      currentTime.value = `${hours}:${minutes}:${seconds}`
+    }
+
+    const toggleRightDrawer = () => {
+      rightDrawerOpen.value = !rightDrawerOpen.value
+    }
+
+    const updateOffset = (newOffset) => {
+      emit('update:offset', newOffset)
+    }
+
+    return {
+      rightDrawerOpen,
+      currentTime,
+      updateTime,
+      toggleRightDrawer,
+      updateOffset
+    }
+  },
   data () {
     return {
       currentPrayerTime: {
@@ -45,12 +101,6 @@ export default defineComponent({
       currentMinute: 0,
       upcomingPrayer: null,
       upcomingMinutes: 0,
-      locationList: [
-        {label: 'Taipei', value: 0},
-        {label: 'Taoyuan, Yanmai', value: 2},
-        {label: 'Hsinchu, Taichung, Changhua', value: 3},
-        {label: 'Chiayi, Tainan, Kaoshiung, Pingtung', value: 5},
-      ],
       month: 0,
       date: 0,
       dateCluster: 1,
@@ -68,7 +118,17 @@ export default defineComponent({
     
     this.updateDailyTime()
 
+    // Initialize and start the clock
+    this.updateTime()
+    this.clockInterval = setInterval(this.updateTime, 1000)
+
     if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") this.notifEnabled = false
+  },
+  unmounted () {
+    // Clean up the interval when component is unmounted
+    if (this.clockInterval) {
+      clearInterval(this.clockInterval)
+    }
   },
   methods: {
     clusterSet (dateNum) {
