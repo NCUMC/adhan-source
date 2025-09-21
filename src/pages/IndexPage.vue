@@ -38,13 +38,15 @@
     </div>
 
     <!-- Settings Drawer Component -->
-    <SettingsDrawer 
-      v-model="rightDrawerOpen" 
-      :offset="offset" 
+    <SettingsDrawer
+      v-model="rightDrawerOpen"
+      :offset="offset"
       :hijri-offset="hijriOffset"
+      :iqamah-config="iqamahConfig"
       @update:offset="updateOffset"
       @update:hijri-offset="updateHijriOffset"
       @refresh-hijri-data="refreshHijriData"
+      @update:iqamah-config="updateIqamahConfig"
     />
 
     <div class="row full-height-viewport">
@@ -69,17 +71,36 @@
           </div>
         </div>
       </div>
-      <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs">
-        <div>
-          <div class="text-h3">{{upcomingPrayer}} in</div>
-          <div>
-            <span class="text-h1 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
-            <span class="text-h3" v-if="upcomingHour > 0">h</span>
-            <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
-            <span class="text-h3">m</span>
-          </div>
-        </div>
-      </div>
+       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs">
+         <div>
+           <!-- Normal status: Show upcoming prayer -->
+           <div v-if="prayerStatus === 'normal'">
+             <div class="text-h3">{{upcomingPrayer}} in</div>
+             <div>
+               <span class="text-h1 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
+               <span class="text-h3" v-if="upcomingHour > 0">h</span>
+               <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
+               <span class="text-h3">m</span>
+             </div>
+           </div>
+           
+           <!-- Countdown status: Show countdown to Iqamah -->
+           <div v-else-if="prayerStatus === 'countdown'">
+             <div class="text-h3 text-secondary">{{currentPrayerInProgress}} - Iqamah in</div>
+             <div>
+               <span class="text-h1 text-secondary text-bold">{{String(countdownMinutes).padStart(2, '0')}}</span>
+               <span class="text-h3">:</span>
+               <span class="text-h1 text-secondary text-bold">{{String(countdownSeconds).padStart(2, '0')}}</span>
+             </div>
+           </div>
+           
+           <!-- In progress status: Show prayer in progress -->
+           <div v-else-if="prayerStatus === 'in-progress'">
+             <div class="text-h3 text-secondary">{{currentPrayerInProgress}} in Progress</div>
+             <div class="text-h1 text-secondary text-bold">Please maintain silence</div>
+           </div>
+         </div>
+       </div>
     </div>
     <div class="row items-center bg-orange-2 gt-xs" style="height: 50px;">
       <div class="col text-h5 text-center">Please keep your phone silent during prayer!</div>
@@ -179,6 +200,10 @@ export default defineComponent({
     const currentDate = ref('')
     const hijriDate = ref('')
     const hijriOffset = ref(0)
+    const prayerStatus = ref('normal') // 'normal', 'countdown', 'in-progress'
+    const countdownMinutes = ref(0)
+    const countdownSeconds = ref(0)
+    const currentPrayerInProgress = ref('')
 
     // Load Hijri offset from localStorage
     const loadHijriOffset = () => {
@@ -251,6 +276,10 @@ export default defineComponent({
       
       // Calculate Hijri date
       hijriDate.value = calculateHijriDate(now)
+      
+      // Check for prayer time and update countdown
+      checkPrayerTime()
+      updateCountdown()
     }
 
     const toggleRightDrawer = () => {
@@ -274,6 +303,60 @@ export default defineComponent({
       updateTime() // Refresh the date display
     }
 
+    // Check if current time matches any prayer time
+    const checkPrayerTime = () => {
+      // Only check if we're in normal status
+      if (prayerStatus.value !== 'normal') return
+      
+      const now = new Date()
+      const currentHour = now.getHours()
+      const currentMinute = now.getMinutes()
+      const currentTimeMinutes = currentHour * 60 + currentMinute
+
+      // This will be called from the component's methods to access currentPrayerTime
+      // For now, we'll add a method to trigger this check
+    }
+
+    // Start 10-minute countdown to Iqamah
+    const startCountdownToIqamah = (prayerName) => {
+      prayerStatus.value = 'countdown'
+      countdownMinutes.value = 10
+      countdownSeconds.value = 0
+      currentPrayerInProgress.value = prayerName
+    }
+
+    // Start 15-minute prayer in progress
+    const startPrayerInProgress = (prayerName) => {
+      prayerStatus.value = 'in-progress'
+      currentPrayerInProgress.value = prayerName
+    }
+
+    // Return to normal status
+    const returnToNormal = () => {
+      prayerStatus.value = 'normal'
+      currentPrayerInProgress.value = ''
+    }
+
+    // Update countdown
+    const updateCountdown = () => {
+      if (prayerStatus.value === 'countdown') {
+        if (countdownSeconds.value > 0) {
+          countdownSeconds.value--
+        } else if (countdownMinutes.value > 0) {
+          countdownMinutes.value--
+          countdownSeconds.value = 59
+        } else {
+          // Countdown finished, start prayer in progress
+          startPrayerInProgress(currentPrayerInProgress.value)
+        }
+      } else if (prayerStatus.value === 'in-progress') {
+        // After 15 minutes, return to normal
+        setTimeout(() => {
+          returnToNormal()
+        }, 15 * 60 * 1000) // 15 minutes
+      }
+    }
+
     // Initialize Hijri offset
     loadHijriOffset()
 
@@ -284,6 +367,10 @@ export default defineComponent({
       currentDate,
       hijriDate,
       hijriOffset,
+      prayerStatus,
+      countdownMinutes,
+      countdownSeconds,
+      currentPrayerInProgress,
       updateTime,
       toggleRightDrawer,
       updateOffset,
@@ -319,11 +406,14 @@ export default defineComponent({
       currentMinute: 0,
       upcomingPrayer: null,
       upcomingMinutes: 0,
+      upcomingMinute: 0,
+      upcomingHour: 0,
       month: 0,
       date: 0,
       dateCluster: 1,
       extraMinutes: 0,
-      notifEnabled: true
+      notifEnabled: true,
+      iqamahConfig: JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}')
     }
   },
   mounted () {
@@ -339,13 +429,31 @@ export default defineComponent({
     // Initialize and start the clock
     this.updateTime()
     this.clockInterval = setInterval(this.updateTime, 1000)
+    
+    // Start countdown timer
+    this.countdownInterval = setInterval(() => {
+      if (this.prayerStatus === 'countdown') {
+        if (this.countdownSeconds > 0) {
+          this.countdownSeconds--
+        } else if (this.countdownMinutes > 0) {
+          this.countdownMinutes--
+          this.countdownSeconds = 59
+        } else {
+          // Countdown finished, start prayer in progress
+          this.startPrayerInProgress(this.currentPrayerInProgress)
+        }
+      }
+    }, 1000)
 
     if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") this.notifEnabled = false
   },
   unmounted () {
-    // Clean up the interval when component is unmounted
+    // Clean up the intervals when component is unmounted
     if (this.clockInterval) {
       clearInterval(this.clockInterval)
+    }
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval)
     }
   },
   methods: {
@@ -412,6 +520,9 @@ export default defineComponent({
         this.upcomingMinute = this.upcomingMinutes - this.upcomingHour * 60
       }
 
+      // Check for prayer time after updating times
+      this.checkPrayerTimeMatch()
+
       if (checkTomorrow) {
         this.todayIndex = this.todayIndex + 1
         this.extraMinutes = 24 * 60 - (this.currentHour*60 + this.currentMinute)
@@ -419,6 +530,53 @@ export default defineComponent({
         this.currentMinute = 0
         this.updateDailyTime(true)
       }
+    },
+    checkPrayerTimeMatch() {
+      // Only check if we're in normal status
+      if (this.prayerStatus !== 'normal') return
+      
+      const now = new Date()
+      const currentHour = now.getHours()
+      const currentMinute = now.getMinutes()
+      const currentTimeMinutes = currentHour * 60 + currentMinute
+
+      // Check each prayer time
+      for (const [prayerName, timeString] of Object.entries(this.currentPrayerTime)) {
+        if (timeString && timeString !== '00:00') {
+          const [hours, minutes] = timeString.split(':').map(Number)
+          const prayerTimeMinutes = hours * 60 + minutes
+          
+          // Check if we're at prayer time (within 1 minute)
+          if (Math.abs(currentTimeMinutes - prayerTimeMinutes) <= 1) {
+            this.startCountdownToIqamah(prayerName)
+            return
+          }
+        }
+      }
+    },
+    startCountdownToIqamah(prayerName) {
+      if (prayerName === 'Sunrise') return;
+      this.prayerStatus = 'countdown'
+      this.countdownMinutes = this.iqamahConfig[prayerName] || 10
+      this.countdownSeconds = 0
+      this.currentPrayerInProgress = prayerName
+    },
+    startPrayerInProgress(prayerName) {
+      this.prayerStatus = 'in-progress'
+      this.currentPrayerInProgress = prayerName
+      
+      // Set timer to return to normal after 15 minutes
+      setTimeout(() => {
+        this.returnToNormal()
+      }, 15 * 60 * 1000) // 15 minutes
+    },
+    returnToNormal() {
+      this.prayerStatus = 'normal'
+      this.currentPrayerInProgress = ''
+    },
+    updateIqamahConfig(newConfig) {
+      this.iqamahConfig = { ...newConfig }
+      localStorage.setItem('iqamahConfig', JSON.stringify(this.iqamahConfig))
     },
     requestNotif () {
        // Let's check if the browser supports notifications

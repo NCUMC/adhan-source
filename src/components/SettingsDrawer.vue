@@ -53,6 +53,19 @@
           label="Refresh Date Data"
           class="full-width q-mt-sm"
         />
+
+        <div class="text-h5 q-mt-lg">
+          Iqamah Countdown (minutes)
+        </div>
+        <div v-for="prayer in ['Fajr','Dhuhr','Asr','Maghrib','Isha']" :key="prayer" class="q-mb-sm">
+          <label>{{prayer}}</label>
+          <q-input
+            dense filled bg-color="white" label-color="white"
+            type="number" min="0" max="60"
+            v-model.number="localIqamahConfig[prayer]"
+            @update:model-value="updateIqamahConfig"
+          />
+        </div>
         
         <div class="text-h5 q-mt-lg">
           Export
@@ -63,33 +76,43 @@
         text-color="secondary"
         icon="download" 
         label="Export Daily Timetable CSV"
-        class="full-width q-mt-sm"
+        class="full-width q-mt-sm q-mb-lg"
       />
     </div>
   </q-drawer>
 </template>
 
 <script>
-import { defineComponent, computed } from 'vue'
+import { defineComponent, computed, ref, watch } from 'vue'
 import prayerData from 'assets/timetable.json'
 
 export default defineComponent({
   name: 'SettingsDrawer',
   props: {
     modelValue: {
-      type: Boolean,
-      default: false
+        type: Boolean,
+        default: false
     },
     offset: {
-      type: Number,
-      default: 2
+        type: Number,
+        default: 2
     },
     hijriOffset: {
-      type: Number,
-      default: 0
+        type: Number,
+        default: 0
+    },
+    iqamahConfig: {
+        type: Object,
+        default: () => ({ Fajr: 10, Dhuhr: 10, Asr: 10, Maghrib: 10, Isha: 10 })
     }
   },
-  emits: ['update:modelValue', 'update:offset', 'update:hijri-offset', 'refresh-hijri-data'],
+  emits: [
+    'update:modelValue',
+    'update:offset',
+    'update:hijri-offset',
+    'refresh-hijri-data',
+    'update:iqamah-config'
+  ],
   setup(props, { emit }) {
     const locationList = [
       {label: 'Taipei', value: 0},
@@ -279,16 +302,33 @@ export default defineComponent({
       }
     }
 
+    // Iqamah Config
+    const localIqamahConfig = ref({ ...props.iqamahConfig })
+
+    watch(
+      () => props.iqamahConfig,
+      (val) => {
+        localIqamahConfig.value = { ...val }
+      }
+    )
+
+    function updateIqamahConfig() {
+      // Emit a copy to avoid mutation issues
+      emit('update:iqamah-config', { ...localIqamahConfig.value })
+    }
+
     return {
       locationList,
       isOpen,
       localOffset,
       localHijriOffset,
+      localIqamahConfig,
       closeDrawer,
       updateOffset,
       updateHijriOffset,
       refreshHijriData,
-      exportDailyCSV
+      exportDailyCSV,
+      updateIqamahConfig
     }
   }
 })
