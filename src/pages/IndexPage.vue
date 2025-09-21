@@ -291,21 +291,7 @@ export default defineComponent({
       updateTime()
       clockInterval = setInterval(updateTime, 1000)
       
-      // Start countdown timer
-      countdownInterval = setInterval(() => {
-        if (prayerStatus.value === 'countdown') {
-          if (countdownSeconds.value > 0) {
-            countdownSeconds.value--
-          } else if (countdownMinutes.value > 0) {
-            countdownMinutes.value--
-            countdownSeconds.value = 59
-          } else {
-            // Countdown finished, start prayer in progress
-            startPrayerInProgress(currentPrayerInProgress.value)
-          }
-        }
-      }, 1000)
-
+      // We'll handle the countdown in updateTime function instead
       if ("Notification" in window && 
           Notification.permission !== "granted" && 
           Notification.permission !== "denied") {
@@ -317,9 +303,6 @@ export default defineComponent({
     onUnmounted(() => {
       if (clockInterval) {
         clearInterval(clockInterval)
-      }
-      if (countdownInterval) {
-        clearInterval(countdownInterval)
       }
       if (messageInterval) {
         clearTimeout(messageInterval)
