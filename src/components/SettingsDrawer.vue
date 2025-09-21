@@ -18,6 +18,13 @@
       <div class="text-h5 q-mt-md">
         Settings
       </div>
+      <q-expansion-item
+        v-model="expandedSections.location"
+        class="text-white"
+        header-class="text-h5"
+        label="Location"
+        default-opened
+      >
         <label>Location</label>
         <q-select 
           dense 
@@ -30,10 +37,15 @@
           :options="locationList"
           @update:model-value="updateOffset"
         />
+      </q-expansion-item>
         
-        <div class="text-h5 q-mt-lg">
-          Hijri Date
-        </div>
+      <q-expansion-item
+        v-model="expandedSections.hijri"
+        class="text-white"
+        header-class="text-h5"
+        label="Hijri Date"
+        default-opened
+      >
         <label>Date Adjustment (Days)</label>
         <q-input 
           dense 
@@ -53,10 +65,15 @@
           label="Refresh Date Data"
           class="full-width q-mt-sm"
         />
+      </q-expansion-item>
 
-        <div class="text-h5 q-mt-lg">
-          Iqamah Countdown (minutes)
-        </div>
+      <q-expansion-item
+        v-model="expandedSections.iqamah"
+        class="text-white"
+        header-class="text-h5"
+        label="Iqamah Countdown (minutes)"
+        default-opened
+      >
         <div v-for="prayer in ['Fajr','Dhuhr','Asr','Maghrib','Isha']" :key="prayer" class="q-mb-sm">
           <label>{{prayer}}</label>
           <q-input
@@ -66,10 +83,11 @@
             @update:model-value="updateIqamahConfig"
           />
         </div>
+      </q-expansion-item>
         
-        <div class="text-h5 q-mt-lg">
-          Export
-        </div>
+      <div class="text-h5 q-mt-lg">
+        Export
+      </div>
       <q-btn 
         @click="exportDailyCSV" 
         color="white" 
@@ -148,7 +166,18 @@ export default defineComponent({
       }
     })
 
+    // Track expanded state of sections
+    const expandedSections = ref({
+      location: false,
+      hijri: false,
+      iqamah: false
+    })
+
     const closeDrawer = () => {
+      // Collapse all sections when drawer closes
+      expandedSections.value.location = false
+      expandedSections.value.hijri = false
+      expandedSections.value.iqamah = false
       emit('update:modelValue', false)
     }
 
@@ -317,12 +346,23 @@ export default defineComponent({
       emit('update:iqamah-config', { ...localIqamahConfig.value })
     }
 
+    // Watch drawer state to reset expanded sections when opened
+    watch(() => isOpen.value, (newValue) => {
+      if (newValue) {
+        // When drawer opens, set all sections to expanded
+        expandedSections.value.location = false
+        expandedSections.value.hijri = false
+        expandedSections.value.iqamah = false
+      }
+    })
+
     return {
       locationList,
       isOpen,
       localOffset,
       localHijriOffset,
       localIqamahConfig,
+      expandedSections,
       closeDrawer,
       updateOffset,
       updateHijriOffset,
