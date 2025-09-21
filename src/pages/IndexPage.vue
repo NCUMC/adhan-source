@@ -44,11 +44,13 @@
       :hijri-offset="hijriOffset"
       :iqamah-config="iqamahConfig"
       :messages="messages"
+      :images="images"
       @update:offset="updateOffset"
       @update:hijri-offset="updateHijriOffset"
       @refresh-hijri-data="refreshHijriData"
       @update:iqamah-config="updateIqamahConfig"
       @update:messages="updateMessages"
+      @update:images="updateImages"
     />
 
     <div class="row full-height-viewport">
@@ -73,16 +75,24 @@
           </div>
         </div>
       </div>
-       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs">
+       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs overflow-hidden">
          <div>
-           <!-- Normal status: Show upcoming prayer -->
-           <div v-if="prayerStatus === 'normal' && upcomingMinute > 0">
-             <div class="text-h1">{{upcomingPrayer}} in</div>
+           <!-- Normal status: Show upcoming prayer and rotating images -->
+           <div v-if="prayerStatus === 'normal'">
+             <!-- <div class="text-h1">{{upcomingPrayer}} in</div>
              <div>
                <span class="text-xl-20 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
                <span class="text-h2" v-if="upcomingHour > 0">h</span>
                <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
                <span class="text-h2">m</span>
+             </div> -->
+             <div v-if="currentImage" class="rotating-image">
+               <q-img
+                 :src="currentImage"
+                 :ratio="16/9"
+                 width="67vw"
+                 class="rounded-borders"
+               />
              </div>
            </div>
            
@@ -103,9 +113,9 @@
            </div>
 
            <div>
-             <span class="text-h3">{{ currentMessage }}</span>
+             <span v-if="prayerStatus !== 'normal'" class="text-h3">{{ currentMessage }}</span>
            </div>
-           <div class="fixed-bottom-right q-pa-sm">
+           <div class="fixed-bottom-right q-pa-sm bg-white rounded-borders">
              <span @click="openURL('https://www.instagram.com/ncu.muslimclub')" class="cursor-pointer text-subtitle1"><q-icon name="fa-brands fa-instagram" class="q-mr-xs" color="secondary"/>@ncu.muslimclub</span>
              <span @click="openURL('mailto:ncumuslimclub@gmail.com')" class="cursor-pointer q-ml-md text-subtitle1"><q-icon name="mail" class="q-mr-xs" color="secondary"/>ncumuslimclub@gmail.com</span>
            </div>
@@ -188,6 +198,15 @@
     font-size: 10em;
     line-height: 0;
   }
+
+  .rotating-image {
+    transition: opacity 0.5s ease-in-out;
+  }
+
+  .rotating-image img {
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
 </style>
 
 <script>
@@ -240,11 +259,15 @@ export default defineComponent({
     const notifEnabled = ref(true)
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
     
-    // Rotating messages configuration
+    // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
+    const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"/icons/NCU_logo_crop.png","duration":10}]'))
     const currentMessage = ref(messages.value[0]?.text || '')
+    const currentImage = ref(images.value[0]?.url || '')
     let messageInterval = null
+    let imageInterval = null
     let currentMessageIndex = 0
+    let currentImageIndex = 0
 
     const rotateMessage = () => {
       if (messages.value.length === 0) return
@@ -259,6 +282,22 @@ export default defineComponent({
       messageInterval = setTimeout(() => {
         currentMessageIndex = (currentMessageIndex + 1) % messages.value.length
         rotateMessage()
+      }, duration)
+    }
+
+    const rotateImage = () => {
+      if (images.value.length === 0) return
+      
+      currentImage.value = images.value[currentImageIndex].url
+      const duration = images.value[currentImageIndex].duration * 1000 * 60
+
+      // Clear existing interval
+      if (imageInterval) clearTimeout(imageInterval)
+
+      // Set up next image
+      imageInterval = setTimeout(() => {
+        currentImageIndex = (currentImageIndex + 1) % images.value.length
+        rotateImage()
       }, duration)
     }
     
@@ -284,8 +323,9 @@ export default defineComponent({
       date.value = dateObj.getDate()
       dateCluster.value = clusterSet(date.value)
       
-      // Start message rotation
+      // Start message and image rotation
       rotateMessage()
+      rotateImage()
 
       // Initialize and start the clock
       updateTime()
@@ -306,6 +346,9 @@ export default defineComponent({
       }
       if (messageInterval) {
         clearTimeout(messageInterval)
+      }
+      if (imageInterval) {
+        clearTimeout(imageInterval)
       }
     })
 
@@ -430,6 +473,13 @@ export default defineComponent({
       localStorage.setItem('messages', JSON.stringify(messages.value))
       currentMessageIndex = 0 // Reset to first message
       rotateMessage() // Restart rotation
+    }
+
+    const updateImages = (newImages) => {
+      images.value = [...newImages]
+      localStorage.setItem('images', JSON.stringify(images.value))
+      currentImageIndex = 0 // Reset to first image
+      rotateImage() // Restart rotation
     }
 
     const requestNotif = () => {
@@ -631,6 +681,8 @@ export default defineComponent({
       hijriDate,
       hijriOffset,
       prayerStatus,
+      currentImage,
+      images,
       countdownMinutes,
       countdownSeconds,
       currentPrayerInProgress,
@@ -666,7 +718,8 @@ export default defineComponent({
       messages,
       currentMessage,
       updateMessages,
-      openURL // Add openURL to the returned object
+      updateImages, // Add updateImages to the returned object
+      openURL
     }
   }
 })

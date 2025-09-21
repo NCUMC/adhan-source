@@ -124,6 +124,54 @@
         />
       </q-expansion-item>
 
+      <q-expansion-item
+        v-model="expandedSections.images"
+        class="text-white"
+        header-class="text-h5"
+        label="Rotating Images (Minutes)"
+        default-opened
+      >
+        <div v-for="(image, index) in localImages" :key="index" class="q-mb-sm">
+          <div class="row items-center q-gutter-sm">
+            <q-input
+              dense filled bg-color="white" label-color="white"
+              class="col"
+              v-model="image.url"
+              placeholder="Image URL or path"
+              @update:model-value="updateImages"
+            />
+            <q-input
+              dense filled bg-color="white" label-color="white"
+              class="col-3"
+              type="number"
+              v-model.number="image.duration"
+              @update:model-value="updateImages"
+            />
+            <q-btn
+              flat round dense
+              icon="delete"
+              color="white"
+              @click="removeImage(index)"
+            />
+          </div>
+          <!-- Preview -->
+          <q-img
+            :src="image.url"
+            :ratio="16/9"
+            class="q-mt-xs"
+            style="max-width: 200px"
+            @error="handleImageError(index)"
+          />
+        </div>
+        <q-btn
+          flat
+          icon="add"
+          label="Add Image"
+          class="full-width q-mt-sm"
+          @click="addImage"
+        />
+      </q-expansion-item>
+
       <div class="text-h5 q-mt-lg">
         Export
       </div>
@@ -165,6 +213,10 @@ export default defineComponent({
     messages: {
         type: Array,
         default: () => [{ text: 'Please keep your phone silent during prayer!', duration: 10 }]
+    },
+    images: {
+        type: Array,
+        default: () => [{ url: '/icons/NCU_logo_crop.png', duration: 10 }]
     }
   },
   emits: [
@@ -173,7 +225,8 @@ export default defineComponent({
     'update:hijri-offset',
     'refresh-hijri-data',
     'update:iqamah-config',
-    'update:messages'
+    'update:messages',
+    'update:images'
   ],
   setup(props, { emit }) {
     const locationList = [
@@ -215,7 +268,8 @@ export default defineComponent({
       location: false,
       hijri: false,
       iqamah: false,
-      messages: false
+      messages: false,
+      images: false
     })
 
     const closeDrawer = () => {
@@ -425,6 +479,35 @@ export default defineComponent({
       localMessages.value = [...newVal]
     })
 
+    // Image configuration
+    const localImages = ref([...props.images])
+    
+    const addImage = () => {
+      localImages.value.push({ url: '', duration: 10 })
+      updateImages()
+    }
+    
+    const removeImage = (index) => {
+      localImages.value.splice(index, 1)
+      if (localImages.value.length === 0) {
+        localImages.value.push({ url: '/icons/NCU_logo_crop.png', duration: 10 })
+      }
+      updateImages()
+    }
+    
+    const handleImageError = (index) => {
+      // You can show a notification or handle invalid image URLs here
+      console.error(`Failed to load image at index ${index}:`, localImages.value[index].url)
+    }
+    
+    const updateImages = () => {
+      emit('update:images', [...localImages.value])
+    }
+    
+    watch(() => props.images, (newVal) => {
+      localImages.value = [...newVal]
+    })
+
     return {
       locationList,
       isOpen,
@@ -432,6 +515,7 @@ export default defineComponent({
       localHijriOffset,
       localIqamahConfig,
       localMessages,
+      localImages,
       expandedSections,
       closeDrawer,
       updateOffset,
@@ -441,7 +525,11 @@ export default defineComponent({
       updateIqamahConfig,
       addMessage,
       removeMessage,
-      updateMessages
+      updateMessages,
+      addImage,
+      removeImage,
+      handleImageError,
+      updateImages
     }
   }
 })
