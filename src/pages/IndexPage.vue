@@ -1,20 +1,28 @@
 <template>
   <q-page class="">
     <!-- Toolbar with clock, avatar, and drawer button -->
-    <div class="row items-center">
-      <div class="col-sm-4 col-12 text-center">
-        <q-avatar size="xl" class="cursor-pointer q-my-sm" @click="toggleRightDrawer">
-          <q-img src="icons/icon-256x256.png"/>
-        </q-avatar>
-      </div>
-       <div class="col-sm-8 col-12 bg-grey-10">
-         <div class="row items-center q-py-md">
+    <div class="row items-center" style="height:150px">
+        <div class="col-sm-4 col-12">
+          <div class="row items-center full-height cursor-pointer" @click="toggleRightDrawer">
+            <div class="col-4 text-center">
+              <q-img src="icons/NCU_logo_crop.png" class="logo-image q-ml-sm"/>
+            </div>
+            <div class="col-8 text-left q-px-md">
+              <div class="text-h5 text-weight-bold">Central Musholla<br/>
+                National Central University (NCU)<br/>
+              </div>
+              <div class="text-subtitle1">Zhongli District, Taoyuan City</div>
+            </div>
+          </div>
+        </div>
+       <div class="col-sm-8 col-12 bg-grey-10 full-height gt-xs">
+         <div class="row items-center full-height">
            <div class="col text-left">
-             <div class="text-h1 text-white q-pl-xl">
+             <div class="text-xl-10 text-white q-pl-xl">
                {{ currentTime }}
              </div>
            </div>
-           <div class="col text-right">
+           <div class="col text-right gt-sm">
              <div class="text-h5 text-white q-pr-xl">
                {{ currentDay }}
              </div>
@@ -39,29 +47,42 @@
       @refresh-hijri-data="refreshHijriData"
     />
 
-    <div class="row">
-      <div class="col-sm-4 col-xs-12 bg-secondary">
-        <div class="full-width" v-for="(time, name) in currentPrayerTime" :key="name">
-          <q-card flat :class="'my-card text-center q-ma-sm radius-5 ' + (upcomingPrayer === name ? 'bg-white' : 'bg-secondary text-white')">
-            <q-card-section class="q-py-sm ">
-              <div class="text-h6 text-capitalize text-bold">
-                {{name}}
-                <span v-if="upcomingPrayer === name" class="text-h6 text-lowercase">| in {{upcomingHour}} hours {{upcomingMinute}} minutes</span>
+    <div class="row full-height-viewport">
+      <div class="col-sm-4 col-xs-12 bg-secondary full-height-viewport">
+        <div class="prayer-times-container">
+          <div 
+            v-for="(prayer, index) in prayerTableData" 
+            :key="index"
+            class="prayer-row"
+            :class="prayer.isUpcoming ? 'upcoming-prayer' : ''"
+          >
+            <div class="prayer-name">
+              <div class="text-h4 text-capitalize text-bold">
+                {{ prayer.name }}
+                <span v-if="prayer.isUpcoming" class="lt-sm text-h4 text-lowercase"><br/><span class="text-secondary text-weight-light">In {{upcomingHour}}h : {{upcomingMinute}}m</span></span>
               </div>
-              <div class="text-h3">{{time}}</div>
-            </q-card-section>
-          </q-card>
+            </div>
+            <div class="prayer-time">
+              <div class="text-h3 lt-lg">{{ prayer.time }}</div>
+              <div class="text-h1 gt-md text-weight-regular">{{ prayer.time }}</div>
+            </div>
+          </div>
         </div>
       </div>
-       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center">
-         <div>
-           <div class="text-h3">{{upcomingPrayer}} in</div>
-           <div class="text-h1">{{String(upcomingHour).padStart(2, '0')}}:{{String(upcomingMinute).padStart(2, '0')}}</div>
-         </div>
-       </div>
+      <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs">
+        <div>
+          <div class="text-h3">{{upcomingPrayer}} in</div>
+          <div>
+            <span class="text-h1 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
+            <span class="text-h3" v-if="upcomingHour > 0">h</span>
+            <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
+            <span class="text-h3">m</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="row">
-      <div class="col bg-orange-1 text-center q-py-md">Be Quiet</div>
+    <div class="row items-center bg-orange-2 gt-xs" style="height: 50px;">
+      <div class="col text-h5 text-center">Please keep your phone silent during prayer!</div>
     </div>
     <!-- <q-page-sticky v-show="!notifEnabled" position="bottom-right" :offset="[18, 18]">
       <q-btn @click="requestNotif" fab icon="notifications" color="secondary" />
@@ -72,6 +93,72 @@
 <style scoped>
   .radius-5 {
     border-radius: 15px;
+  }
+  
+  .full-height-viewport {
+    height: calc(100vh - 200px); /* Use height instead of min-height */
+  }
+  
+  /* Ensure the column takes full height */
+  .col-sm-4.full-height-viewport {
+    height: calc(100vh - 200px);
+  }
+  
+  .q-page {
+    min-height: 100vh;
+  }
+  
+  /* Custom prayer times layout */
+  .prayer-times-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .prayer-row {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .prayer-row.upcoming-prayer {
+    background-color: white;
+    color: black;
+  }
+  
+  .prayer-name {
+    flex: 1;
+    text-align: left;
+  }
+  
+  .prayer-time {
+    flex: 1;
+    text-align: right;
+  }
+  
+  /* Logo and header styling */
+  .logo-image {
+    max-width: 120px;
+    max-height: 120px;
+    object-fit: contain;
+  }
+  
+  .full-height {
+    height: 100%;
+  }
+
+  .text-xl-20 {
+    font-size: 20em;
+    line-height: 1em;
+  }
+  
+  .text-xl-10 {
+    font-size: 10em;
+    line-height: 0;
   }
 </style>
 
@@ -204,16 +291,30 @@ export default defineComponent({
       refreshHijriData
     }
   },
+  computed: {
+    prayerTableData() {
+      return this.prayerNames.map(name => ({
+        name: name,
+        time: this.currentPrayerTime[name] || '00:00',
+        isUpcoming: this.upcomingPrayer === name
+      }))
+    }
+  },
   data () {
     return {
       currentPrayerTime: {
         'Fajr': '00:00',
+        'Sunrise': '00:00',
         'Dhuhr': '00:00',
         'Asr': '00:00',
         'Maghrib': '00:00',
         'Isha': '00:00'
       },
-      prayerNames: ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
+      prayerNames: ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
+      prayerColumns: [
+        { name: 'prayer', label: 'Prayer', field: 'name', align: 'left' },
+        { name: 'time', label: 'Time', field: 'time', align: 'right' }
+      ],
       currentHour: 0,
       currentMinute: 0,
       upcomingPrayer: null,
@@ -258,10 +359,11 @@ export default defineComponent({
       // Updated to work with new nested format
       var monthData = prayerData[this.month] || []
       var dayData = monthData[this.dateCluster] || {}
-      var prayerNames = Object.assign({} ,this.prayerNames)
+      var prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] // Exclude Sunrise from main loop
       var checkTomorrow = true
       var foundPrayer = false
       
+      // Process regular prayer times
       for (var idx in prayerNames) {
         let name = prayerNames[idx]
         // Get time from the new format (direct prayer name)
@@ -282,6 +384,32 @@ export default defineComponent({
           this.upcomingMinute = this.upcomingMinutes - this.upcomingHour * 60
         }
         this.currentPrayerTime[name] = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0')
+      }
+
+      // Calculate Sunrise (70 minutes after Fajr)
+      var fajrTime = this.currentPrayerTime['Fajr']
+      var fajrParts = fajrTime.split(':')
+      var fajrHour = parseInt(fajrParts[0])
+      var fajrMinute = parseInt(fajrParts[1])
+      var sunriseMinutes = fajrHour*60 + fajrMinute + 70
+      var sunriseHour = Math.floor(sunriseMinutes/60)
+      var sunriseMinute = sunriseMinutes - sunriseHour*60
+      
+      // Handle day overflow for sunrise
+      if (sunriseHour >= 24) {
+        sunriseHour -= 24
+      }
+      
+      this.currentPrayerTime['Sunrise'] = String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMinute).padStart(2, '0')
+
+      // Check if sunrise is the upcoming prayer
+      if ((sunriseHour*60 + sunriseMinute) > (this.currentHour*60 + this.currentMinute) && (foundPrayer === false)) {
+        checkTomorrow = false
+        foundPrayer = true
+        this.upcomingPrayer = 'Sunrise'
+        this.upcomingMinutes = this.extraMinutes + (sunriseHour*60 + sunriseMinute) - (this.currentHour*60 + this.currentMinute)
+        this.upcomingHour = Math.floor(this.upcomingMinutes / 60)
+        this.upcomingMinute = this.upcomingMinutes - this.upcomingHour * 60
       }
 
       if (checkTomorrow) {
