@@ -105,6 +105,10 @@
            <div>
              <span class="text-h3">{{ currentMessage }}</span>
            </div>
+           <div class="fixed-bottom-right q-pa-sm">
+             <span @click="openURL('https://www.instagram.com/ncu.muslimclub')" class="cursor-pointer text-subtitle1"><q-icon name="fa-brands fa-instagram" class="q-mr-xs" color="secondary"/>@ncu.muslimclub</span>
+             <span @click="openURL('mailto:ncumuslimclub@gmail.com')" class="cursor-pointer q-ml-md text-subtitle1"><q-icon name="mail" class="q-mr-xs" color="secondary"/>ncumuslimclub@gmail.com</span>
+           </div>
          </div>
        </div>
     </div>
@@ -190,6 +194,7 @@
 import { defineComponent, ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import prayerData from 'assets/timetable.json'
 import SettingsDrawer from 'components/SettingsDrawer.vue'
+import { openURL } from 'quasar'
 export default defineComponent({
   name: 'IndexPage',
   components: {
@@ -677,7 +682,8 @@ export default defineComponent({
       requestNotif,
       messages,
       currentMessage,
-      updateMessages
+      updateMessages,
+      openURL // Add openURL to the returned object
     }
   }
 })
