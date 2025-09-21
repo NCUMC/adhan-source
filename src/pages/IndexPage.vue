@@ -18,18 +18,18 @@
        <div class="col-sm-8 col-12 bg-grey-10 full-height gt-xs">
          <div class="row items-center full-height">
            <div class="col text-left">
-             <div class="text-xl-10 text-white q-pl-xl">
+             <div class="text-xl-10 text-white q-pl-sm">
                {{ currentTime }}
              </div>
            </div>
            <div class="col text-right gt-sm">
-             <div class="text-h5 text-white q-pr-xl">
+             <div class="text-h4 text-white q-pr-sm">
                {{ currentDay }}
              </div>
-             <div class="text-h5 text-white q-pr-xl">
+             <div class="text-h4 text-white q-pr-sm">
                {{ currentDate }}
              </div>
-             <div class="text-h5 text-white q-pr-xl">
+             <div class="text-h4 text-white q-pr-sm">
                {{ hijriDate }}
              </div>
            </div>
@@ -43,10 +43,12 @@
       :offset="offset"
       :hijri-offset="hijriOffset"
       :iqamah-config="iqamahConfig"
+      :messages="messages"
       @update:offset="updateOffset"
       @update:hijri-offset="updateHijriOffset"
       @refresh-hijri-data="refreshHijriData"
       @update:iqamah-config="updateIqamahConfig"
+      @update:messages="updateMessages"
     />
 
     <div class="row full-height-viewport">
@@ -74,7 +76,7 @@
        <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs">
          <div>
            <!-- Normal status: Show upcoming prayer -->
-           <div v-if="prayerStatus === 'normal'">
+           <div v-if="prayerStatus === 'normal' && upcomingMinute > 0">
              <div class="text-h1">{{upcomingPrayer}} in</div>
              <div>
                <span class="text-xl-20 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
@@ -86,11 +88,11 @@
            
            <!-- Countdown status: Show countdown to Iqamah -->
            <div v-else-if="prayerStatus === 'countdown'">
-             <div class="text-h3 text-secondary">{{currentPrayerInProgress}} - Iqamah in</div>
+             <div class="text-h1">{{currentPrayerInProgress}} - Iqamah in</div>
              <div>
-               <span class="text-h1 text-secondary text-bold">{{String(countdownMinutes).padStart(2, '0')}}</span>
-               <span class="text-h3">:</span>
-               <span class="text-h1 text-secondary text-bold">{{String(countdownSeconds).padStart(2, '0')}}</span>
+               <span class="text-xl-20 text-secondary text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
+               <span class="text-xl-20">:</span>
+               <span class="text-xl-20 text-secondary text-bolder">{{String(countdownSeconds).padStart(2, '0')}}</span>
              </div>
            </div>
            
@@ -99,11 +101,12 @@
              <div class="text-h3 text-secondary">{{currentPrayerInProgress}} in Progress</div>
              <div class="text-h1 text-secondary text-bold">Please maintain silence</div>
            </div>
+
+           <div>
+             <span class="text-h3">{{ currentMessage }}</span>
+           </div>
          </div>
        </div>
-    </div>
-    <div class="row items-center bg-orange-2 gt-xs" style="height: 50px;">
-      <div class="col text-h5 text-center">Please keep your phone silent during prayer!</div>
     </div>
     <!-- <q-page-sticky v-show="!notifEnabled" position="bottom-right" :offset="[18, 18]">
       <q-btn @click="requestNotif" fab icon="notifications" color="secondary" />
@@ -117,12 +120,12 @@
   }
   
   .full-height-viewport {
-    height: calc(100vh - 200px); /* Use height instead of min-height */
+    height: calc(100vh - 150px); /* Use height instead of min-height */
   }
   
   /* Ensure the column takes full height */
   .col-sm-4.full-height-viewport {
-    height: calc(100vh - 200px);
+    height: calc(100vh - 150px);
   }
   
   .q-page {
@@ -232,6 +235,28 @@ export default defineComponent({
     const notifEnabled = ref(true)
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
     
+    // Rotating messages configuration
+    const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
+    const currentMessage = ref(messages.value[0]?.text || '')
+    let messageInterval = null
+    let currentMessageIndex = 0
+
+    const rotateMessage = () => {
+      if (messages.value.length === 0) return
+      
+      currentMessage.value = messages.value[currentMessageIndex].text
+      const duration = messages.value[currentMessageIndex].duration * 1000 * 60
+
+      // Clear existing interval
+      if (messageInterval) clearTimeout(messageInterval)
+
+      // Set up next message
+      messageInterval = setTimeout(() => {
+        currentMessageIndex = (currentMessageIndex + 1) % messages.value.length
+        rotateMessage()
+      }, duration)
+    }
+    
     // Convert computed property to setup
     const prayerTableData = computed(() => {
       return prayerNames.value.map(name => ({
@@ -253,6 +278,9 @@ export default defineComponent({
       month.value = dateObj.getMonth()
       date.value = dateObj.getDate()
       dateCluster.value = clusterSet(date.value)
+      
+      // Start message rotation
+      rotateMessage()
 
       // Initialize and start the clock
       updateTime()
@@ -287,6 +315,9 @@ export default defineComponent({
       }
       if (countdownInterval) {
         clearInterval(countdownInterval)
+      }
+      if (messageInterval) {
+        clearTimeout(messageInterval)
       }
     })
 
@@ -373,12 +404,18 @@ export default defineComponent({
       }
     }
 
-    const startCountdownToIqamah = (prayerName) => {
+    const startCountdownToIqamah = (prayerName, timeout) => {
       if (prayerName === 'Sunrise') return
+      
+      console.log(`Setting up Iqamah countdown for ${prayerName}`)
+      console.log('Current iqamahConfig:', iqamahConfig.value)
+      
       prayerStatus.value = 'countdown'
-      countdownMinutes.value = iqamahConfig.value[prayerName] || 10
+      countdownMinutes.value = timeout || iqamahConfig.value[prayerName] || 10
       countdownSeconds.value = 0
       currentPrayerInProgress.value = prayerName
+      
+      console.log(`Countdown started: ${countdownMinutes.value}:${countdownSeconds.value}`)
     }
 
     const startPrayerInProgress = (prayerName) => {
@@ -398,6 +435,13 @@ export default defineComponent({
     const updateIqamahConfig = (newConfig) => {
       iqamahConfig.value = { ...newConfig }
       localStorage.setItem('iqamahConfig', JSON.stringify(iqamahConfig.value))
+    }
+
+    const updateMessages = (newMessages) => {
+      messages.value = [...newMessages]
+      localStorage.setItem('messages', JSON.stringify(messages.value))
+      currentMessageIndex = 0 // Reset to first message
+      rotateMessage() // Restart rotation
     }
 
     const requestNotif = () => {
@@ -501,10 +545,16 @@ export default defineComponent({
       // Calculate Hijri date
       hijriDate.value = calculateHijriDate(now)
       
-      // Check for prayer time and update countdown
-      checkPrayerTime()
-      updateCountdown()
+      // Update daily prayer times first
       updateDailyTime()
+      
+      // Then check for prayer time match and update countdown
+      if (prayerStatus.value === 'normal') {
+        checkPrayerTime()
+      }
+      
+      // Finally update any ongoing countdown
+      updateCountdown()
     }
 
     const toggleRightDrawer = () => {
@@ -530,16 +580,34 @@ export default defineComponent({
 
     // Check if current time matches any prayer time
     const checkPrayerTime = () => {
-      // Only check if we're in normal status
-      if (prayerStatus.value !== 'normal') return
+      if (prayerStatus.value !== 'normal') {
+        console.log('Prayer status is not normal:', prayerStatus.value)
+        return
+      }
       
-      const now = new Date()
-      const currentHour = now.getHours()
-      const currentMinute = now.getMinutes()
-      const currentTimeMinutes = currentHour * 60 + currentMinute
-
-      // This will be called from the component's methods to access currentPrayerTime
-      // For now, we'll add a method to trigger this check
+      const currentTimeMinutes = currentHour.value * 60 + currentMinute.value
+      
+      // Check each prayer time except Sunrise
+      for (const name of prayerNames.value) {
+        if (name === 'Sunrise') {
+          continue
+        }
+        
+        const timeString = currentPrayerTime[name]
+        const iqamahThreshold = iqamahConfig.value[name]
+        
+        if (timeString && timeString !== '00:00') {
+          const [hours, minutes] = timeString.split(':').map(Number)
+          const prayerTimeMinutes = hours * 60 + minutes
+          
+          if (prayerTimeMinutes + iqamahThreshold - currentTimeMinutes >= 0) {
+            startCountdownToIqamah(name, prayerTimeMinutes + iqamahThreshold - currentTimeMinutes)
+            return
+          }
+        } else {
+          console.log(`${name}: Invalid time format (${timeString})`)
+        }
+      }
     }
 
     // Update countdown
@@ -606,7 +674,10 @@ export default defineComponent({
       startPrayerInProgress,
       returnToNormal,
       updateIqamahConfig,
-      requestNotif
+      requestNotif,
+      messages,
+      currentMessage,
+      updateMessages
     }
   }
 })

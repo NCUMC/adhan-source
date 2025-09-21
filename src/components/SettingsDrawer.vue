@@ -85,6 +85,45 @@
         </div>
       </q-expansion-item>
         
+      <q-expansion-item
+        v-model="expandedSections.messages"
+        class="text-white"
+        header-class="text-h5"
+        label="Reminder Messages (Minutes)"
+        default-opened
+      >
+        <div v-for="(message, index) in localMessages" :key="index" class="q-mb-sm">
+          <div class="row items-center q-gutter-sm">
+            <q-input
+              dense filled bg-color="white" label-color="white"
+              class="col"
+              v-model="message.text"
+              @update:model-value="updateMessages"
+            />
+            <q-input
+              dense filled bg-color="white" label-color="white"
+              class="col-3"
+              type="number"
+              v-model.number="message.duration"
+              @update:model-value="updateMessages"
+            />
+            <q-btn
+              flat round dense
+              icon="delete"
+              color="white"
+              @click="removeMessage(index)"
+            />
+          </div>
+        </div>
+        <q-btn
+          flat
+          icon="add"
+          label="Add Message"
+          class="full-width q-mt-sm"
+          @click="addMessage"
+        />
+      </q-expansion-item>
+
       <div class="text-h5 q-mt-lg">
         Export
       </div>
@@ -122,6 +161,10 @@ export default defineComponent({
     iqamahConfig: {
         type: Object,
         default: () => ({ Fajr: 10, Dhuhr: 10, Asr: 10, Maghrib: 10, Isha: 10 })
+    },
+    messages: {
+        type: Array,
+        default: () => [{ text: 'Please keep your phone silent during prayer!', duration: 10 }]
     }
   },
   emits: [
@@ -129,7 +172,8 @@ export default defineComponent({
     'update:offset',
     'update:hijri-offset',
     'refresh-hijri-data',
-    'update:iqamah-config'
+    'update:iqamah-config',
+    'update:messages'
   ],
   setup(props, { emit }) {
     const locationList = [
@@ -170,7 +214,8 @@ export default defineComponent({
     const expandedSections = ref({
       location: false,
       hijri: false,
-      iqamah: false
+      iqamah: false,
+      messages: false
     })
 
     const closeDrawer = () => {
@@ -356,19 +401,47 @@ export default defineComponent({
       }
     })
 
+    // Message configuration
+    const localMessages = ref([...props.messages])
+
+    const addMessage = () => {
+      localMessages.value.push({ text: '', duration: 10 })
+      updateMessages()
+    }
+
+    const removeMessage = (index) => {
+      localMessages.value.splice(index, 1)
+      if (localMessages.value.length === 0) {
+        localMessages.value.push({ text: 'Please keep your phone silent during prayer!', duration: 10 })
+      }
+      updateMessages()
+    }
+
+    const updateMessages = () => {
+      emit('update:messages', [...localMessages.value])
+    }
+
+    watch(() => props.messages, (newVal) => {
+      localMessages.value = [...newVal]
+    })
+
     return {
       locationList,
       isOpen,
       localOffset,
       localHijriOffset,
       localIqamahConfig,
+      localMessages,
       expandedSections,
       closeDrawer,
       updateOffset,
       updateHijriOffset,
       refreshHijriData,
       exportDailyCSV,
-      updateIqamahConfig
+      updateIqamahConfig,
+      addMessage,
+      removeMessage,
+      updateMessages
     }
   }
 })
