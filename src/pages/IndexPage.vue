@@ -66,7 +66,7 @@
             </div>
             <div class="prayer-time">
               <div class="text-h3 lt-lg">{{ prayer.time }}</div>
-              <div class="text-h1 gt-md text-weight-regular">{{ prayer.time }}</div>
+              <div class="gt-md text-weight-regular" style="font-size: 45pt;">{{ prayer.time }}</div>
             </div>
           </div>
         </div>
@@ -75,12 +75,12 @@
          <div>
            <!-- Normal status: Show upcoming prayer -->
            <div v-if="prayerStatus === 'normal'">
-             <div class="text-h3">{{upcomingPrayer}} in</div>
+             <div class="text-h1">{{upcomingPrayer}} in</div>
              <div>
-               <span class="text-h1 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
-               <span class="text-h3" v-if="upcomingHour > 0">h</span>
+               <span class="text-xl-20 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
+               <span class="text-h2" v-if="upcomingHour > 0">h</span>
                <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
-               <span class="text-h3">m</span>
+               <span class="text-h2">m</span>
              </div>
            </div>
            
@@ -184,7 +184,7 @@
 </style>
 
 <script>
-import { defineComponent, ref } from 'vue'
+import { defineComponent, ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import prayerData from 'assets/timetable.json'
 import SettingsDrawer from 'components/SettingsDrawer.vue'
 export default defineComponent({
@@ -204,6 +204,225 @@ export default defineComponent({
     const countdownMinutes = ref(0)
     const countdownSeconds = ref(0)
     const currentPrayerInProgress = ref('')
+
+    // Data properties moved from data() to setup
+    const currentPrayerTime = reactive({
+      'Fajr': '00:00',
+      'Sunrise': '00:00',
+      'Dhuhr': '00:00',
+      'Asr': '00:00',
+      'Maghrib': '00:00',
+      'Isha': '00:00'
+    })
+    const prayerNames = ref(['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
+    const prayerColumns = ref([
+      { name: 'prayer', label: 'Prayer', field: 'name', align: 'left' },
+      { name: 'time', label: 'Time', field: 'time', align: 'right' }
+    ])
+    const currentHour = ref(0)
+    const currentMinute = ref(0)
+    const upcomingPrayer = ref(null)
+    const upcomingMinutes = ref(0)
+    const upcomingMinute = ref(0)
+    const upcomingHour = ref(0)
+    const month = ref(0)
+    const date = ref(0)
+    const dateCluster = ref(1)
+    const extraMinutes = ref(0)
+    const notifEnabled = ref(true)
+    const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
+    
+    // Convert computed property to setup
+    const prayerTableData = computed(() => {
+      return prayerNames.value.map(name => ({
+        name: name,
+        time: currentPrayerTime[name] || '00:00',
+        isUpcoming: upcomingPrayer.value === name
+      }))
+    })
+
+    // Clock interval reference for cleanup
+    let clockInterval = null
+    let countdownInterval = null
+
+    // Move mounted logic to onMounted
+    onMounted(() => {
+      const dateObj = new Date()
+      currentHour.value = dateObj.getHours()
+      currentMinute.value = dateObj.getMinutes()
+      month.value = dateObj.getMonth()
+      date.value = dateObj.getDate()
+      dateCluster.value = clusterSet(date.value)
+
+      // Initialize and start the clock
+      updateTime()
+      clockInterval = setInterval(updateTime, 1000)
+      
+      // Start countdown timer
+      countdownInterval = setInterval(() => {
+        if (prayerStatus.value === 'countdown') {
+          if (countdownSeconds.value > 0) {
+            countdownSeconds.value--
+          } else if (countdownMinutes.value > 0) {
+            countdownMinutes.value--
+            countdownSeconds.value = 59
+          } else {
+            // Countdown finished, start prayer in progress
+            startPrayerInProgress(currentPrayerInProgress.value)
+          }
+        }
+      }, 1000)
+
+      if ("Notification" in window && 
+          Notification.permission !== "granted" && 
+          Notification.permission !== "denied") {
+        notifEnabled.value = false
+      }
+    })
+
+    // Move unmounted logic to onUnmounted
+    onUnmounted(() => {
+      if (clockInterval) {
+        clearInterval(clockInterval)
+      }
+      if (countdownInterval) {
+        clearInterval(countdownInterval)
+      }
+    })
+
+    // Move all methods to setup functions
+    const clusterSet = (dateNum) => {
+      if (dateNum < 11) return 0
+      else if (dateNum < 21) return 1
+      else return 2
+    }
+
+    const updateDailyTime = () => {
+      var offset = props.offset
+      var monthData = prayerData[month.value] || []
+      var dayData = monthData[dateCluster.value] || {}
+      var names = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
+      var checkTomorrow = true
+      var foundPrayer = false
+      
+      // Process regular prayer times
+      for (var idx in names) {
+        let name = names[idx]
+        var timeString = dayData[name] || '00:00'
+        var parts = timeString.split(':')
+        var minute = parseInt(parts[1])
+        var hour = parseInt(parts[0])
+        var minutes = hour*60 + minute + parseInt(offset)
+        hour = Math.floor(minutes/60)
+        minute = minutes - hour*60
+        
+        if ((hour*60 + minute) > (currentHour.value*60 + currentMinute.value) && (foundPrayer === false)) {
+          checkTomorrow = false
+          foundPrayer = true
+          upcomingPrayer.value = name
+          upcomingMinutes.value = extraMinutes.value + (hour*60 + minute) - (currentHour.value*60 + currentMinute.value)
+          upcomingHour.value = Math.floor(upcomingMinutes.value / 60)
+          upcomingMinute.value = upcomingMinutes.value - upcomingHour.value * 60
+        }
+        currentPrayerTime[name] = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0')
+      }
+
+      // Calculate Sunrise (70 minutes after Fajr)
+      var fajrTime = currentPrayerTime['Fajr']
+      var fajrParts = fajrTime.split(':')
+      var fajrHour = parseInt(fajrParts[0])
+      var fajrMinute = parseInt(fajrParts[1])
+      var sunriseMinutes = fajrHour*60 + fajrMinute + 70
+      var sunriseHour = Math.floor(sunriseMinutes/60)
+      var sunriseMinute = sunriseMinutes - sunriseHour*60
+      
+      if (sunriseHour >= 24) {
+        sunriseHour -= 24
+      }
+      
+      currentPrayerTime['Sunrise'] = String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMinute).padStart(2, '0')
+
+      if ((sunriseHour*60 + sunriseMinute) > (currentHour.value*60 + currentMinute.value) && (foundPrayer === false)) {
+        checkTomorrow = false
+        foundPrayer = true
+        upcomingPrayer.value = 'Sunrise'
+        upcomingMinutes.value = extraMinutes.value + (sunriseHour*60 + sunriseMinute) - (currentHour.value*60 + currentMinute.value)
+        upcomingHour.value = Math.floor(upcomingMinutes.value / 60)
+        upcomingMinute.value = upcomingMinutes.value - upcomingHour.value * 60
+      }
+    }
+
+    const checkPrayerTimeMatch = () => {
+      if (prayerStatus.value !== 'normal') return
+      
+      const now = new Date()
+      const curHour = now.getHours()
+      const curMinute = now.getMinutes()
+      const currentTimeMinutes = curHour * 60 + curMinute
+
+      for (const [prayerName, timeString] of Object.entries(currentPrayerTime)) {
+        if (timeString && timeString !== '00:00') {
+          const [hours, minutes] = timeString.split(':').map(Number)
+          const prayerTimeMinutes = hours * 60 + minutes
+          
+          if (Math.abs(currentTimeMinutes - prayerTimeMinutes) <= 1) {
+            startCountdownToIqamah(prayerName)
+            return
+          }
+        }
+      }
+    }
+
+    const startCountdownToIqamah = (prayerName) => {
+      if (prayerName === 'Sunrise') return
+      prayerStatus.value = 'countdown'
+      countdownMinutes.value = iqamahConfig.value[prayerName] || 10
+      countdownSeconds.value = 0
+      currentPrayerInProgress.value = prayerName
+    }
+
+    const startPrayerInProgress = (prayerName) => {
+      prayerStatus.value = 'in-progress'
+      currentPrayerInProgress.value = prayerName
+      
+      setTimeout(() => {
+        returnToNormal()
+      }, 15 * 60 * 1000)
+    }
+
+    const returnToNormal = () => {
+      prayerStatus.value = 'normal'
+      currentPrayerInProgress.value = ''
+    }
+
+    const updateIqamahConfig = (newConfig) => {
+      iqamahConfig.value = { ...newConfig }
+      localStorage.setItem('iqamahConfig', JSON.stringify(iqamahConfig.value))
+    }
+
+    const requestNotif = () => {
+      if (!("Notification" in window)) {
+        alert("This browser does not support notification")
+      }
+      else if (Notification.permission === "granted") {
+        var notification = new Notification("Notification already granted")
+      }
+      else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(function (permission) {
+          if (permission === "granted") {
+            var notification = new Notification("Notification Activated!")
+          }
+        })
+      }
+    }
+
+    // Move watch to setup
+    watch(() => props.offset, (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        localStorage.setItem('offset', newVal)
+        updateDailyTime()
+      }
+    })
 
     // Load Hijri offset from localStorage
     const loadHijriOffset = () => {
@@ -280,6 +499,7 @@ export default defineComponent({
       // Check for prayer time and update countdown
       checkPrayerTime()
       updateCountdown()
+      updateDailyTime()
     }
 
     const toggleRightDrawer = () => {
@@ -317,26 +537,6 @@ export default defineComponent({
       // For now, we'll add a method to trigger this check
     }
 
-    // Start 10-minute countdown to Iqamah
-    const startCountdownToIqamah = (prayerName) => {
-      prayerStatus.value = 'countdown'
-      countdownMinutes.value = 10
-      countdownSeconds.value = 0
-      currentPrayerInProgress.value = prayerName
-    }
-
-    // Start 15-minute prayer in progress
-    const startPrayerInProgress = (prayerName) => {
-      prayerStatus.value = 'in-progress'
-      currentPrayerInProgress.value = prayerName
-    }
-
-    // Return to normal status
-    const returnToNormal = () => {
-      prayerStatus.value = 'normal'
-      currentPrayerInProgress.value = ''
-    }
-
     // Update countdown
     const updateCountdown = () => {
       if (prayerStatus.value === 'countdown') {
@@ -360,6 +560,8 @@ export default defineComponent({
     // Initialize Hijri offset
     loadHijriOffset()
 
+    
+    // Return all the needed template refs and functions
     return {
       rightDrawerOpen,
       currentTime,
@@ -371,242 +573,35 @@ export default defineComponent({
       countdownMinutes,
       countdownSeconds,
       currentPrayerInProgress,
+      currentPrayerTime,
+      prayerNames,
+      prayerColumns,
+      currentHour,
+      currentMinute,
+      upcomingPrayer,
+      upcomingMinutes,
+      upcomingMinute,
+      upcomingHour,
+      month,
+      date,
+      dateCluster,
+      extraMinutes,
+      notifEnabled,
+      iqamahConfig,
+      prayerTableData,
       updateTime,
       toggleRightDrawer,
       updateOffset,
       updateHijriOffset,
-      refreshHijriData
-    }
-  },
-  computed: {
-    prayerTableData() {
-      return this.prayerNames.map(name => ({
-        name: name,
-        time: this.currentPrayerTime[name] || '00:00',
-        isUpcoming: this.upcomingPrayer === name
-      }))
-    }
-  },
-  data () {
-    return {
-      currentPrayerTime: {
-        'Fajr': '00:00',
-        'Sunrise': '00:00',
-        'Dhuhr': '00:00',
-        'Asr': '00:00',
-        'Maghrib': '00:00',
-        'Isha': '00:00'
-      },
-      prayerNames: ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
-      prayerColumns: [
-        { name: 'prayer', label: 'Prayer', field: 'name', align: 'left' },
-        { name: 'time', label: 'Time', field: 'time', align: 'right' }
-      ],
-      currentHour: 0,
-      currentMinute: 0,
-      upcomingPrayer: null,
-      upcomingMinutes: 0,
-      upcomingMinute: 0,
-      upcomingHour: 0,
-      month: 0,
-      date: 0,
-      dateCluster: 1,
-      extraMinutes: 0,
-      notifEnabled: true,
-      iqamahConfig: JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}')
-    }
-  },
-  mounted () {
-    const dateObj = new Date()
-    this.currentHour = dateObj.getHours()
-    this.currentMinute = dateObj.getMinutes()
-    this.month = dateObj.getMonth()
-    this.date = dateObj.getDate()
-    this.dateCluster = this.clusterSet(this.date)
-    
-    this.updateDailyTime()
-
-    // Initialize and start the clock
-    this.updateTime()
-    this.clockInterval = setInterval(this.updateTime, 1000)
-    
-    // Start countdown timer
-    this.countdownInterval = setInterval(() => {
-      if (this.prayerStatus === 'countdown') {
-        if (this.countdownSeconds > 0) {
-          this.countdownSeconds--
-        } else if (this.countdownMinutes > 0) {
-          this.countdownMinutes--
-          this.countdownSeconds = 59
-        } else {
-          // Countdown finished, start prayer in progress
-          this.startPrayerInProgress(this.currentPrayerInProgress)
-        }
-      }
-    }, 1000)
-
-    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") this.notifEnabled = false
-  },
-  unmounted () {
-    // Clean up the intervals when component is unmounted
-    if (this.clockInterval) {
-      clearInterval(this.clockInterval)
-    }
-    if (this.countdownInterval) {
-      clearInterval(this.countdownInterval)
-    }
-  },
-  methods: {
-    clusterSet (dateNum) {
-      if (dateNum < 11) return 0  // Changed from 1 to 0 for array indexing
-      else if (dateNum < 21) return 1  // Changed from 2 to 1
-      else return 2  // Changed from 3 to 2
-    },
-    updateDailyTime () {
-      var offset = this.offset
-      // Updated to work with new nested format
-      var monthData = prayerData[this.month] || []
-      var dayData = monthData[this.dateCluster] || {}
-      var prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] // Exclude Sunrise from main loop
-      var checkTomorrow = true
-      var foundPrayer = false
-      
-      // Process regular prayer times
-      for (var idx in prayerNames) {
-        let name = prayerNames[idx]
-        // Get time from the new format (direct prayer name)
-        var timeString = dayData[name] || '00:00'
-        var parts = timeString.split(':')
-        var minute = parseInt(parts[1])
-        var hour = parseInt(parts[0])
-        var minutes = hour*60 + minute + parseInt(offset)
-        hour = Math.floor(minutes/60)
-        minute = minutes - hour*60
-        
-        if ((hour*60 + minute) > (this.currentHour*60 + this.currentMinute) && (foundPrayer === false)) {
-          checkTomorrow = false
-          foundPrayer = true
-          this.upcomingPrayer = name
-          this.upcomingMinutes = this.extraMinutes + (hour*60 + minute) - (this.currentHour*60 + this.currentMinute)
-          this.upcomingHour = Math.floor(this.upcomingMinutes / 60)
-          this.upcomingMinute = this.upcomingMinutes - this.upcomingHour * 60
-        }
-        this.currentPrayerTime[name] = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0')
-      }
-
-      // Calculate Sunrise (70 minutes after Fajr)
-      var fajrTime = this.currentPrayerTime['Fajr']
-      var fajrParts = fajrTime.split(':')
-      var fajrHour = parseInt(fajrParts[0])
-      var fajrMinute = parseInt(fajrParts[1])
-      var sunriseMinutes = fajrHour*60 + fajrMinute + 70
-      var sunriseHour = Math.floor(sunriseMinutes/60)
-      var sunriseMinute = sunriseMinutes - sunriseHour*60
-      
-      // Handle day overflow for sunrise
-      if (sunriseHour >= 24) {
-        sunriseHour -= 24
-      }
-      
-      this.currentPrayerTime['Sunrise'] = String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMinute).padStart(2, '0')
-
-      // Check if sunrise is the upcoming prayer
-      if ((sunriseHour*60 + sunriseMinute) > (this.currentHour*60 + this.currentMinute) && (foundPrayer === false)) {
-        checkTomorrow = false
-        foundPrayer = true
-        this.upcomingPrayer = 'Sunrise'
-        this.upcomingMinutes = this.extraMinutes + (sunriseHour*60 + sunriseMinute) - (this.currentHour*60 + this.currentMinute)
-        this.upcomingHour = Math.floor(this.upcomingMinutes / 60)
-        this.upcomingMinute = this.upcomingMinutes - this.upcomingHour * 60
-      }
-
-      // Check for prayer time after updating times
-      this.checkPrayerTimeMatch()
-
-      if (checkTomorrow) {
-        this.todayIndex = this.todayIndex + 1
-        this.extraMinutes = 24 * 60 - (this.currentHour*60 + this.currentMinute)
-        this.currentHour = 0
-        this.currentMinute = 0
-        this.updateDailyTime(true)
-      }
-    },
-    checkPrayerTimeMatch() {
-      // Only check if we're in normal status
-      if (this.prayerStatus !== 'normal') return
-      
-      const now = new Date()
-      const currentHour = now.getHours()
-      const currentMinute = now.getMinutes()
-      const currentTimeMinutes = currentHour * 60 + currentMinute
-
-      // Check each prayer time
-      for (const [prayerName, timeString] of Object.entries(this.currentPrayerTime)) {
-        if (timeString && timeString !== '00:00') {
-          const [hours, minutes] = timeString.split(':').map(Number)
-          const prayerTimeMinutes = hours * 60 + minutes
-          
-          // Check if we're at prayer time (within 1 minute)
-          if (Math.abs(currentTimeMinutes - prayerTimeMinutes) <= 1) {
-            this.startCountdownToIqamah(prayerName)
-            return
-          }
-        }
-      }
-    },
-    startCountdownToIqamah(prayerName) {
-      if (prayerName === 'Sunrise') return;
-      this.prayerStatus = 'countdown'
-      this.countdownMinutes = this.iqamahConfig[prayerName] || 10
-      this.countdownSeconds = 0
-      this.currentPrayerInProgress = prayerName
-    },
-    startPrayerInProgress(prayerName) {
-      this.prayerStatus = 'in-progress'
-      this.currentPrayerInProgress = prayerName
-      
-      // Set timer to return to normal after 15 minutes
-      setTimeout(() => {
-        this.returnToNormal()
-      }, 15 * 60 * 1000) // 15 minutes
-    },
-    returnToNormal() {
-      this.prayerStatus = 'normal'
-      this.currentPrayerInProgress = ''
-    },
-    updateIqamahConfig(newConfig) {
-      this.iqamahConfig = { ...newConfig }
-      localStorage.setItem('iqamahConfig', JSON.stringify(this.iqamahConfig))
-    },
-    requestNotif () {
-       // Let's check if the browser supports notifications
-      if (!("Notification" in window)) {
-        alert("This browser does not support notification");
-      }
-
-      // Let's check whether notification permissions have already been granted
-      else if (Notification.permission === "granted") {
-        // If it's okay let's create a notification
-        var notification = new Notification("Notification already granted");
-      }
-
-      // Otherwise, we need to ask the user for permission
-      else if (Notification.permission !== "denied") {
-        Notification.requestPermission().then(function (permission) {
-          // If the user accepts, let's create a notification
-          if (permission === "granted") {
-            var notification = new Notification("Notification Activated!");
-          }
-        });
-      }
-    }
-  },
-  watch: {
-    offset (newVal, oldVal) {
-      if (newVal != oldVal) {
-        localStorage.setItem('offset', newVal)
-        this.updateDailyTime()
-      }
+      refreshHijriData,
+      clusterSet,
+      updateDailyTime,
+      checkPrayerTimeMatch,
+      startCountdownToIqamah,
+      startPrayerInProgress,
+      returnToNormal,
+      updateIqamahConfig,
+      requestNotif
     }
   }
 })
