@@ -261,7 +261,7 @@ export default defineComponent({
     
     // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
-    const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"/icons/NCU_logo_crop.png","duration":10}]'))
+    const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"/icons/logo.png","duration":10}]'))
     const currentMessage = ref(messages.value[0]?.text || '')
     const currentImage = ref(images.value[0]?.url || '')
     let messageInterval = null
