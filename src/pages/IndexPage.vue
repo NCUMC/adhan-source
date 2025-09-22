@@ -638,7 +638,7 @@ export default defineComponent({
           const [hours, minutes] = timeString.split(':').map(Number)
           const prayerTimeMinutes = hours * 60 + minutes
           
-          if (prayerTimeMinutes + iqamahThreshold - currentTimeMinutes >= 0) {
+          if (currentTimeMinutes >= prayerTimeMinutes && prayerTimeMinutes + iqamahThreshold - currentTimeMinutes >= 0) {
             startCountdownToIqamah(name, prayerTimeMinutes + iqamahThreshold - currentTimeMinutes)
             return
           }
