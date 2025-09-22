@@ -5,7 +5,7 @@
         <div class="col-sm-4 col-12">
           <div class="row items-center full-height cursor-pointer" @click="toggleRightDrawer">
             <div class="col-4 text-center">
-              <q-img src="icons/NCU_logo_crop.png" class="logo-image q-ml-sm"/>
+              <q-img src="icons/logo.png" class="logo-image q-ml-sm"/>
             </div>
             <div class="col-8 text-left q-px-md">
               <div class="text-h5 text-weight-bold">Central Musholla<br/>
