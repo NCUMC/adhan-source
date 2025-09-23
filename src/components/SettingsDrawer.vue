@@ -1,7 +1,7 @@
 <template>
   <q-drawer v-model="isOpen" side="right" overlay class="bg-secondary text-white">
     <!-- drawer content -->
-    <div class="q-mx-md">
+    <div class="q-mx-md q-mb-lg">
       <div class="row items-center justify-between q-mt-md">
         <div class="text-subtitle2">Simple Prayer Time</div>
         <q-btn 
@@ -182,8 +182,13 @@
         text-color="secondary"
         icon="download" 
         label="Export Daily Timetable CSV"
-        class="full-width q-mt-sm q-mb-lg"
+        class="full-width q-mt-sm"
       />
+      <div v-if="$q.platform.is.mobile">
+        <div class="text-subtitle1 q-mt-md">Contact Us</div>
+        <div @click="openURL('https://www.instagram.com/ncu.muslimclub')" class="cursor-pointer text-subtitle1"><q-icon name="fa-brands fa-instagram" class="q-mr-xs" color="white"/>@ncu.muslimclub</div>
+        <div @click="openURL('mailto:ncumuslimclub@gmail.com')" class="cursor-pointer text-subtitle1"><q-icon name="mail" class="q-mr-xs" color="white"/>ncumuslimclub@gmail.com</div>
+      </div>
     </div>
   </q-drawer>
 </template>
