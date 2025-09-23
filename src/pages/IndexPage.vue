@@ -15,7 +15,7 @@
             </div>
           </div>
         </div>
-       <div class="col-sm-8 col-12 bg-grey-10 full-height gt-xs">
+       <div class="col-sm-8 col-12 bg-grey-10 full-height gt-xs" v-if="$q.platform.is.desktop">
          <div class="row items-center full-height">
            <div class="col text-left">
              <div class="text-xl-10 text-white q-pl-sm">
@@ -75,7 +75,7 @@
           </div>
         </div>
       </div>
-       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs overflow-hidden">
+       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs overflow-hidden" v-if="$q.platform.is.desktop">
          <div>
            <!-- Normal status: Show upcoming prayer and rotating images -->
            <div v-if="prayerStatus === 'normal'">

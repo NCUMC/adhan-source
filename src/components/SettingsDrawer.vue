@@ -38,140 +38,141 @@
           @update:model-value="updateOffset"
         />
       </q-expansion-item>
-        
-      <q-expansion-item
-        v-model="expandedSections.hijri"
-        class="text-white"
-        header-class="text-h5"
-        label="Hijri Date"
-        default-opened
-      >
-        <label>Date Adjustment (Days)</label>
-        <q-input 
-          dense 
-          filled 
-          bg-color="white" 
-          v-model.number="localHijriOffset" 
-          label-color="white" 
-          type="number"
-          hint="Adjust Hijri date (+/- days)"
-          @update:model-value="updateHijriOffset"
-        />
-        <q-btn 
-          @click="refreshHijriData" 
-          color="white" 
-          text-color="secondary"
-          icon="refresh" 
-          label="Refresh Date Data"
-          class="full-width q-mt-sm"
-        />
-      </q-expansion-item>
-
-      <q-expansion-item
-        v-model="expandedSections.iqamah"
-        class="text-white"
-        header-class="text-h5"
-        label="Iqamah Countdown (minutes)"
-        default-opened
-      >
-        <div v-for="prayer in ['Fajr','Dhuhr','Asr','Maghrib','Isha']" :key="prayer" class="q-mb-sm">
-          <label>{{prayer}}</label>
-          <q-input
-            dense filled bg-color="white" label-color="white"
-            type="number" min="0" max="60"
-            v-model.number="localIqamahConfig[prayer]"
-            @update:model-value="updateIqamahConfig"
+      <!-- Desktop Mode Only -->
+      <div v-if="$q.platform.is.desktop">
+        <q-expansion-item
+          v-model="expandedSections.hijri"
+          class="text-white"
+          header-class="text-h5"
+          label="Hijri Date"
+          default-opened
+        >
+          <label>Date Adjustment (Days)</label>
+          <q-input 
+            dense 
+            filled 
+            bg-color="white" 
+            v-model.number="localHijriOffset" 
+            label-color="white" 
+            type="number"
+            hint="Adjust Hijri date (+/- days)"
+            @update:model-value="updateHijriOffset"
           />
-        </div>
-      </q-expansion-item>
-        
-      <q-expansion-item
-        v-model="expandedSections.messages"
-        class="text-white"
-        header-class="text-h5"
-        label="Reminder Messages (Minutes)"
-        default-opened
-      >
-        <div v-for="(message, index) in localMessages" :key="index" class="q-mb-sm">
-          <div class="row items-center q-gutter-sm">
+          <q-btn 
+            @click="refreshHijriData" 
+            color="white" 
+            text-color="secondary"
+            icon="refresh" 
+            label="Refresh Date Data"
+            class="full-width q-mt-sm"
+          />
+        </q-expansion-item>
+
+        <q-expansion-item
+          v-model="expandedSections.iqamah"
+          class="text-white"
+          header-class="text-h5"
+          label="Iqamah Countdown (minutes)"
+          default-opened
+        >
+          <div v-for="prayer in ['Fajr','Dhuhr','Asr','Maghrib','Isha']" :key="prayer" class="q-mb-sm">
+            <label>{{prayer}}</label>
             <q-input
               dense filled bg-color="white" label-color="white"
-              class="col"
-              v-model="message.text"
-              @update:model-value="updateMessages"
-            />
-            <q-input
-              dense filled bg-color="white" label-color="white"
-              class="col-3"
-              type="number"
-              v-model.number="message.duration"
-              @update:model-value="updateMessages"
-            />
-            <q-btn
-              flat round dense
-              icon="delete"
-              color="white"
-              @click="removeMessage(index)"
+              type="number" min="0" max="60"
+              v-model.number="localIqamahConfig[prayer]"
+              @update:model-value="updateIqamahConfig"
             />
           </div>
-        </div>
-        <q-btn
-          flat
-          icon="add"
-          label="Add Message"
-          class="full-width q-mt-sm"
-          @click="addMessage"
-        />
-      </q-expansion-item>
+        </q-expansion-item>
+          
+        <q-expansion-item
+          v-model="expandedSections.messages"
+          class="text-white"
+          header-class="text-h5"
+          label="Reminder Messages (Minutes)"
+          default-opened
+        >
+          <div v-for="(message, index) in localMessages" :key="index" class="q-mb-sm">
+            <div class="row items-center q-gutter-sm">
+              <q-input
+                dense filled bg-color="white" label-color="white"
+                class="col"
+                v-model="message.text"
+                @update:model-value="updateMessages"
+              />
+              <q-input
+                dense filled bg-color="white" label-color="white"
+                class="col-3"
+                type="number"
+                v-model.number="message.duration"
+                @update:model-value="updateMessages"
+              />
+              <q-btn
+                flat round dense
+                icon="delete"
+                color="white"
+                @click="removeMessage(index)"
+              />
+            </div>
+          </div>
+          <q-btn
+            flat
+            icon="add"
+            label="Add Message"
+            class="full-width q-mt-sm"
+            @click="addMessage"
+          />
+        </q-expansion-item>
 
-      <q-expansion-item
-        v-model="expandedSections.images"
-        class="text-white"
-        header-class="text-h5"
-        label="Rotating Images (Minutes)"
-        default-opened
-      >
-        <div v-for="(image, index) in localImages" :key="index" class="q-mb-sm">
-          <div class="row items-center q-gutter-sm">
-            <q-input
-              dense filled bg-color="white" label-color="white"
-              class="col"
-              v-model="image.url"
-              placeholder="Image URL or path"
-              @update:model-value="updateImages"
-            />
-            <q-input
-              dense filled bg-color="white" label-color="white"
-              class="col-3"
-              type="number"
-              v-model.number="image.duration"
-              @update:model-value="updateImages"
-            />
-            <q-btn
-              flat round dense
-              icon="delete"
-              color="white"
-              @click="removeImage(index)"
+        <q-expansion-item
+          v-model="expandedSections.images"
+          class="text-white"
+          header-class="text-h5"
+          label="Rotating Images (Minutes)"
+          default-opened
+        >
+          <div v-for="(image, index) in localImages" :key="index" class="q-mb-sm">
+            <div class="row items-center q-gutter-sm">
+              <q-input
+                dense filled bg-color="white" label-color="white"
+                class="col"
+                v-model="image.url"
+                placeholder="Image URL or path"
+                @update:model-value="updateImages"
+              />
+              <q-input
+                dense filled bg-color="white" label-color="white"
+                class="col-3"
+                type="number"
+                v-model.number="image.duration"
+                @update:model-value="updateImages"
+              />
+              <q-btn
+                flat round dense
+                icon="delete"
+                color="white"
+                @click="removeImage(index)"
+              />
+            </div>
+            <!-- Preview -->
+            <q-img
+              :src="image.url"
+              :ratio="16/9"
+              class="q-mt-xs"
+              style="max-width: 200px"
+              @error="handleImageError(index)"
             />
           </div>
-          <!-- Preview -->
-          <q-img
-            :src="image.url"
-            :ratio="16/9"
-            class="q-mt-xs"
-            style="max-width: 200px"
-            @error="handleImageError(index)"
+          <q-btn
+            flat
+            icon="add"
+            label="Add Image"
+            class="full-width q-mt-sm"
+            @click="addImage"
           />
-        </div>
-        <q-btn
-          flat
-          icon="add"
-          label="Add Image"
-          class="full-width q-mt-sm"
-          @click="addImage"
-        />
-      </q-expansion-item>
-
+        </q-expansion-item>
+      </div>
       <div class="text-h5 q-mt-lg">
         Export
       </div>
