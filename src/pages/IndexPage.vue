@@ -23,13 +23,13 @@
              </div>
            </div>
            <div class="col text-right gt-sm">
-             <div class="text-h4 text-black q-pr-sm">
+             <div class="text-h4 text-black q-pr-md">
                {{ currentDay }}
              </div>
-             <div class="text-h4 text-black q-pr-sm">
+             <div class="text-h4 text-black q-pr-md">
                {{ currentDate }}
              </div>
-             <div class="text-h4 text-black q-pr-sm">
+             <div class="text-h4 text-black q-pr-md">
                {{ hijriDate }}
              </div>
            </div>
@@ -68,14 +68,14 @@
             :class="prayer.isUpcoming ? 'upcoming-prayer' : ''"
           >
             <div class="prayer-name">
-              <div class="text-capitalize text-bold" :style="'font-size:' + prayerNameFontSize + 'vh'">
+              <div class="text-capitalize text-bold dynamic-font-size" :style="'font-size:' + prayerNameFontSize + 'vh'">
                 {{ prayer.name }}
                 <span v-if="prayer.isUpcoming" class="lt-sm text-h4 text-lowercase"><br/><span class="text-secondary text-weight-light">In {{upcomingHour}}h : {{upcomingMinute}}m</span></span>
               </div>
             </div>
             <div class="prayer-time">
               <div class="text-h3 lt-lg">{{ prayer.time }}</div>
-              <div class="gt-md text-weight-regular" :style="'font-size:' + prayerTimeFontSize + 'vh'">{{ prayer.time }}</div>
+              <div class="gt-md text-weight-regular dynamic-font-size" :style="'font-size:' + prayerTimeFontSize + 'vh'">{{ prayer.time }}</div>
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@
            
            <!-- Countdown status: Show countdown to Iqamah -->
            <div v-else-if="prayerStatus === 'countdown'">
-             <div class="text-h1">{{currentPrayerInProgress}} - Iqamah in</div>
+             <div class="text-h1">{{currentPrayerInProgress}} Prayer - Iqamah in</div>
              <div :style="'font-size:'+mainClockSize+'vh'">
                <span class="dynamic-font-size text-secondary text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
                <span class="dynamic-font-size">:</span>
@@ -113,8 +113,7 @@
            
            <!-- In progress status: Show prayer in progress -->
            <div v-else-if="prayerStatus === 'in-progress'">
-             <div class="text-h3 text-secondary">{{currentPrayerInProgress}} in Progress</div>
-             <div class="text-h1 text-secondary text-bold">Please maintain silence</div>
+             <div class="text-h2 text-secondary">{{currentPrayerInProgress}} Prayer in Progress</div>
            </div>
 
            <div>
@@ -229,9 +228,9 @@ export default defineComponent({
     const countdownMinutes = ref(0)
     const countdownSeconds = ref(0)
     const currentPrayerInProgress = ref('')
-    const mainClockSize = ref(15)
-    const prayerTimeFontSize = ref(8)
-    const prayerNameFontSize = ref(5)
+    const mainClockSize = ref(localStorage.getItem('mainClockSize') || 15)
+    const prayerTimeFontSize = ref(localStorage.getItem('prayerTimeFontSize') || 8)
+    const prayerNameFontSize = ref(localStorage.getItem('prayerNameFontSize') || 5)
 
     // Data properties moved from data() to setup
     const currentPrayerTime = reactive({

@@ -335,24 +335,27 @@ export default defineComponent({
         return props.mainClockSize
       },
       set(value) {
+        localStorage.setItem('mainClockSize', value)
         emit('update:main-clock-size', value)
       }
     })
-
+    
     const localPrayerTimeFontSize = computed({
       get() {
         return props.prayerTimeFontSize
       },
       set(value) {
+        localStorage.setItem('prayerTimeFontSize', value)
         emit('update:prayer-time-font-size', value)
       }
     })
-
+    
     const localPrayerNameFontSize = computed({
       get() {
         return props.prayerNameFontSize
       },
       set(value) {
+        localStorage.setItem('prayerNameFontSize', value)
         emit('update:prayer-name-font-size', value)
       }
     })
