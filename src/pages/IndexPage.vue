@@ -18,18 +18,18 @@
        <div class="col-sm-8 col-12 full-height gt-xs" v-if="$q.platform.is.desktop">
          <div class="row items-center full-height">
            <div class="col text-left">
-             <div class="q-pl-lg dynamic-font-size" :style="'font-size:'+mainClockSize +'vh'">
+             <div class="dynamic-font-size" :style="'font-size:'+mainClockSize +'vh'">
                {{ currentTime }}
              </div>
            </div>
            <div class="col text-right gt-sm">
-             <div class="text-h4 text-black q-pr-md">
+             <div class="text-black q-pr-md text-date">
                {{ currentDay }}
              </div>
-             <div class="text-h4 text-black q-pr-md">
+             <div class="text-black q-pr-md text-date">
                {{ currentDate }}
              </div>
-             <div class="text-h4 text-black q-pr-md">
+             <div class="text-black q-pr-md text-date">
                {{ hijriDate }}
              </div>
            </div>
@@ -103,21 +103,21 @@
            
            <!-- Countdown status: Show countdown to Iqamah -->
            <div v-else-if="prayerStatus === 'countdown'">
-             <div class="text-h1">{{currentPrayerInProgress}} Prayer - Iqamah in</div>
+             <div class="text-h1 text-white">{{currentPrayerInProgress}} Prayer - Iqamah in</div>
              <div :style="'font-size:'+mainClockSize+'vh'">
-               <span class="dynamic-font-size text-secondary text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
-               <span class="dynamic-font-size">:</span>
-               <span class="dynamic-font-size text-secondary text-bolder">{{String(countdownSeconds).padStart(2, '0')}}</span>
+               <span class="dynamic-font-size text-white text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
+               <span class="dynamic-font-size text-white">:</span>
+               <span class="dynamic-font-size text-white text-bolder">{{String(countdownSeconds).padStart(2, '0')}}</span>
              </div>
            </div>
            
            <!-- In progress status: Show prayer in progress -->
            <div v-else-if="prayerStatus === 'in-progress'">
-             <div class="text-h2 text-secondary">{{currentPrayerInProgress}} Prayer in Progress</div>
+             <div class="text-h2 text-white">{{currentPrayerInProgress}} Prayer in Progress</div>
            </div>
 
            <div>
-             <span v-if="prayerStatus !== 'normal'" class="text-h3">{{ currentMessage }}</span>
+             <span v-if="prayerStatus !== 'normal'" class="text-h3 text-white text-weight-normal">{{ currentMessage }}</span>
            </div>
            <div class="fixed-bottom-right q-pa-sm bg-white rounded-borders">
              <span @click="openURL('https://www.instagram.com/ncu.muslimclub')" class="cursor-pointer text-subtitle1"><q-icon name="fa-brands fa-instagram" class="q-mr-xs" color="secondary"/>@ncu.muslimclub</span>
@@ -203,6 +203,11 @@
   .rotating-image img {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-date {
+    font-size: 4.1vh;
+    line-height: 1.2em;
   }
 </style>
 
