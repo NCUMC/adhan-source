@@ -84,14 +84,14 @@
          <div>
            <!-- Normal status: Show upcoming prayer and rotating images -->
            <div v-if="prayerStatus === 'normal'">
-             <!-- <div class="text-h1">{{upcomingPrayer}} in</div>
-             <div>
+             <div v-if="showUpcomingCountdown" class="text-h1">{{upcomingPrayer}} in</div>
+             <div v-if="showUpcomingCountdown">
                <span class="text-xl-20 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
                <span class="text-h2" v-if="upcomingHour > 0">h</span>
                <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
                <span class="text-h2">m</span>
-             </div> -->
-             <div v-if="currentImage" class="rotating-image overflow-hidden" style="max-height: 82vh;">
+             </div>
+             <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" style="max-height: 82vh;">
                <q-img
                  :src="currentImage"
                  :ratio="1"
@@ -266,6 +266,7 @@ export default defineComponent({
     const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"/icons/logo.png","duration":10}]'))
     const currentMessage = ref(messages.value[0]?.text || '')
     const currentImage = ref(images.value[0]?.url || '')
+    const showUpcomingCountdown = ref(false)
     let messageInterval = null
     let imageInterval = null
     let currentMessageIndex = 0
@@ -298,7 +299,12 @@ export default defineComponent({
 
       // Set up next image
       imageInterval = setTimeout(() => {
-        currentImageIndex = (currentImageIndex + 1) % images.value.length
+        if (!showUpcomingCountdown.value) {
+          currentImageIndex = (currentImageIndex + 1) % images.value.length
+        }
+        if (currentImageIndex == 0) {
+          showUpcomingCountdown.value = !showUpcomingCountdown.value
+        }
         rotateImage()
       }, duration)
     }
@@ -707,6 +713,7 @@ export default defineComponent({
       mainClockSize,
       prayerTimeFontSize,
       prayerNameFontSize,
+      showUpcomingCountdown,
       updateTime,
       toggleRightDrawer,
       updateOffset,
