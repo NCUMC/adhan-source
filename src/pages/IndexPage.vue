@@ -80,16 +80,16 @@
           </div>
         </div>
       </div>
-       <div class="col-sm-8 col-xs-12 bg-grey-1 text-center flex flex-center gt-xs overflow-hidden" v-if="$q.platform.is.desktop">
+       <div class="col-sm-8 col-xs-12 bg-grey-10 text-center flex flex-center gt-xs overflow-hidden" v-if="$q.platform.is.desktop">
          <div>
            <!-- Normal status: Show upcoming prayer and rotating images -->
            <div v-if="prayerStatus === 'normal'">
-             <div v-if="showUpcomingCountdown" class="text-h1">{{upcomingPrayer}} in</div>
+             <div v-if="showUpcomingCountdown" class="text-h1 text-white">{{upcomingPrayer}} in</div>
              <div v-if="showUpcomingCountdown">
-               <span class="text-xl-20 text-secondary text-bold" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
-               <span class="text-h2" v-if="upcomingHour > 0">h</span>
-               <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
-               <span class="text-h2">m</span>
+               <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
+               <span class="text-h2 text-white" v-if="upcomingHour > 0">h</span>
+               <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'">{{String(upcomingMinute).padStart(2, '0')}}</span>
+               <span class="text-h2 text-white">m</span>
              </div>
              <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" style="max-height: 82vh;">
                <q-img
@@ -169,8 +169,7 @@
   }
   
   .prayer-row.upcoming-prayer {
-    background-color: white;
-    color: black;
+    background-color: #15625a;
   }
   
   .prayer-name {
@@ -417,6 +416,23 @@ export default defineComponent({
         foundPrayer = true
         upcomingPrayer.value = 'Sunrise'
         upcomingMinutes.value = extraMinutes.value + (sunriseHour*60 + sunriseMinute) - (currentHour.value*60 + currentMinute.value)
+        upcomingHour.value = Math.floor(upcomingMinutes.value / 60)
+        upcomingMinute.value = upcomingMinutes.value - upcomingHour.value * 60
+      }
+      
+      if (foundPrayer === false && checkTomorrow) {
+        let name = 'Fajr'
+        var timeString = dayData[name] || '00:00'
+        var parts = timeString.split(':')
+        var minute = parseInt(parts[1])
+        var hour = parseInt(parts[0])
+        var minutes = hour*60 + minute + parseInt(offset)
+        hour = Math.floor(minutes/60)
+        minute = minutes - hour*60
+
+        extraMinutes.value = 24 * 60 - (currentHour.value*60 + currentMinute.value)
+        upcomingPrayer.value = 'Fajr'
+        upcomingMinutes.value = extraMinutes.value + (hour*60 + minute)
         upcomingHour.value = Math.floor(upcomingMinutes.value / 60)
         upcomingMinute.value = upcomingMinutes.value - upcomingHour.value * 60
       }
