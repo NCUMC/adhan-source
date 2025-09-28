@@ -1,7 +1,7 @@
 <template>
   <q-page class="">
     <!-- Toolbar with clock, avatar, and drawer button -->
-    <div class="row items-center" style="height:150px">
+    <div class="row items-center" style="height:18vh">
         <div class="col-sm-4 col-12">
           <div class="row items-center full-height cursor-pointer" @click="toggleRightDrawer">
             <div class="col-4 text-center">
@@ -15,21 +15,21 @@
             </div>
           </div>
         </div>
-       <div class="col-sm-8 col-12 bg-grey-10 full-height gt-xs" v-if="$q.platform.is.desktop">
+       <div class="col-sm-8 col-12 full-height gt-xs" v-if="$q.platform.is.desktop">
          <div class="row items-center full-height">
            <div class="col text-left">
-             <div class="text-xl-10 text-white q-pl-sm">
+             <div class="text-secondary q-pl-sm dynamic-font-size" :style="'font-size:'+mainClockSize +'vh'">
                {{ currentTime }}
              </div>
            </div>
            <div class="col text-right gt-sm">
-             <div class="text-h4 text-white q-pr-sm">
+             <div class="text-h4 text-black q-pr-sm">
                {{ currentDay }}
              </div>
-             <div class="text-h4 text-white q-pr-sm">
+             <div class="text-h4 text-black q-pr-sm">
                {{ currentDate }}
              </div>
-             <div class="text-h4 text-white q-pr-sm">
+             <div class="text-h4 text-black q-pr-sm">
                {{ hijriDate }}
              </div>
            </div>
@@ -38,22 +38,27 @@
     </div>
 
     <!-- Settings Drawer Component -->
-    <SettingsDrawer
-      v-model="rightDrawerOpen"
-      :offset="offset"
-      :hijri-offset="hijriOffset"
-      :iqamah-config="iqamahConfig"
-      :messages="messages"
-      :images="images"
-      @update:offset="updateOffset"
-      @update:hijri-offset="updateHijriOffset"
-      @refresh-hijri-data="refreshHijriData"
-      @update:iqamah-config="updateIqamahConfig"
-      @update:messages="updateMessages"
-      @update:images="updateImages"
-    />
-
-    <div class="row full-height-viewport">
+      <SettingsDrawer
+        v-model="rightDrawerOpen"
+        :offset="offset"
+        :hijri-offset="hijriOffset"
+        :main-clock-size="mainClockSize"
+        :prayer-time-font-size="prayerTimeFontSize"
+        :prayer-name-font-size="prayerNameFontSize"
+        :iqamah-config="iqamahConfig"
+        :messages="messages"
+        :images="images"
+        @update:offset="updateOffset"
+        @update:hijri-offset="updateHijriOffset"
+        @update:main-clock-size="(val) => mainClockSize = val"
+        @update:prayer-time-font-size="(val) => prayerTimeFontSize = val"
+        @update:prayer-name-font-size="(val) => prayerNameFontSize = val"
+        @refresh-hijri-data="refreshHijriData"
+        @update:iqamah-config="updateIqamahConfig"
+        @update:messages="updateMessages"
+        @update:images="updateImages"
+      />
+      <div class="row full-height-viewport">
       <div class="col-sm-4 col-xs-12 bg-secondary full-height-viewport">
         <div class="prayer-times-container">
           <div 
@@ -63,14 +68,14 @@
             :class="prayer.isUpcoming ? 'upcoming-prayer' : ''"
           >
             <div class="prayer-name">
-              <div class="text-h4 text-capitalize text-bold">
+              <div class="text-capitalize text-bold" :style="'font-size:' + prayerNameFontSize + 'vh'">
                 {{ prayer.name }}
                 <span v-if="prayer.isUpcoming" class="lt-sm text-h4 text-lowercase"><br/><span class="text-secondary text-weight-light">In {{upcomingHour}}h : {{upcomingMinute}}m</span></span>
               </div>
             </div>
             <div class="prayer-time">
               <div class="text-h3 lt-lg">{{ prayer.time }}</div>
-              <div class="gt-md text-weight-regular" style="font-size: 8vh;">{{ prayer.time }}</div>
+              <div class="gt-md text-weight-regular" :style="'font-size:' + prayerTimeFontSize + 'vh'">{{ prayer.time }}</div>
             </div>
           </div>
         </div>
@@ -99,10 +104,10 @@
            <!-- Countdown status: Show countdown to Iqamah -->
            <div v-else-if="prayerStatus === 'countdown'">
              <div class="text-h1">{{currentPrayerInProgress}} - Iqamah in</div>
-             <div>
-               <span class="text-xl-20 text-secondary text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
-               <span class="text-xl-20">:</span>
-               <span class="text-xl-20 text-secondary text-bolder">{{String(countdownSeconds).padStart(2, '0')}}</span>
+             <div :style="'font-size:'+mainClockSize+'vh'">
+               <span class="dynamic-font-size text-secondary text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
+               <span class="dynamic-font-size">:</span>
+               <span class="dynamic-font-size text-secondary text-bolder">{{String(countdownSeconds).padStart(2, '0')}}</span>
              </div>
            </div>
            
@@ -134,12 +139,12 @@
   }
   
   .full-height-viewport {
-    height: calc(100vh - 150px); /* Use height instead of min-height */
+    height: 82vh; /* Use height instead of min-height */
   }
   
   /* Ensure the column takes full height */
   .col-sm-4.full-height-viewport {
-    height: calc(100vh - 150px);
+    height: 82vh;
   }
   
   .q-page {
@@ -189,13 +194,7 @@
     height: 100%;
   }
 
-  .text-xl-20 {
-    font-size: 20em;
-    line-height: 1em;
-  }
-  
-  .text-xl-10 {
-    font-size: 10em;
+  .dynamic-font-size {
     line-height: 0;
   }
 
@@ -231,6 +230,9 @@ export default defineComponent({
     const countdownMinutes = ref(0)
     const countdownSeconds = ref(0)
     const currentPrayerInProgress = ref('')
+    const mainClockSize = ref(15)
+    const prayerTimeFontSize = ref(8)
+    const prayerNameFontSize = ref(5)
 
     // Data properties moved from data() to setup
     const currentPrayerTime = reactive({
@@ -702,6 +704,9 @@ export default defineComponent({
       notifEnabled,
       iqamahConfig,
       prayerTableData,
+      mainClockSize,
+      prayerTimeFontSize,
+      prayerNameFontSize,
       updateTime,
       toggleRightDrawer,
       updateOffset,

@@ -41,6 +41,51 @@
       <!-- Desktop Mode Only -->
       <div v-if="$q.platform.is.desktop">
         <q-expansion-item
+          v-model="expandedSections.font_setting"
+          class="text-white"
+          header-class="text-h5"
+          label="Font Size Setting"
+          default-opened
+        >
+          <div class="q-mb-sm">
+            <label>Main Clock Font Size (vh)</label>
+            <q-input 
+              dense 
+              filled 
+              bg-color="white" 
+              v-model.number="localMainClockSize" 
+              label-color="white" 
+              type="number"
+              hint="Main clock font size in vh"
+            />
+          </div>
+          <div class="q-mb-sm">
+            <label>Prayer Time Font Size (vh)</label>
+            <q-input 
+              dense 
+              filled 
+              bg-color="white" 
+              v-model.number="localPrayerTimeFontSize" 
+              label-color="white" 
+              type="number"
+              hint="Prayer time font size in vh"
+            />
+          </div>
+          <div class="q-mb-sm">
+            <label>Prayer Name Font Size (vh)</label>
+            <q-input 
+              dense 
+              filled 
+              bg-color="white" 
+              v-model.number="localPrayerNameFontSize" 
+              label-color="white" 
+              type="number"
+              hint="Prayer name font size in vh"
+            />
+          </div>
+        </q-expansion-item>
+
+        <q-expansion-item
           v-model="expandedSections.hijri"
           class="text-white"
           header-class="text-h5"
@@ -212,6 +257,18 @@ export default defineComponent({
         type: Number,
         default: 0
     },
+    mainClockSize: {
+        type: Number,
+        default: 15
+    },
+    prayerTimeFontSize: {
+        type: Number,
+        default: 8
+    },
+    prayerNameFontSize: {
+        type: Number,
+        default: 5
+    },
     iqamahConfig: {
         type: Object,
         default: () => ({ Fajr: 10, Dhuhr: 10, Asr: 10, Maghrib: 10, Isha: 10 })
@@ -229,6 +286,9 @@ export default defineComponent({
     'update:modelValue',
     'update:offset',
     'update:hijri-offset',
+    'update:main-clock-size',
+    'update:prayer-time-font-size',
+    'update:prayer-name-font-size',
     'refresh-hijri-data',
     'update:iqamah-config',
     'update:messages',
@@ -269,13 +329,41 @@ export default defineComponent({
       }
     })
 
+    const localMainClockSize = computed({
+      get() {
+        return props.mainClockSize
+      },
+      set(value) {
+        emit('update:main-clock-size', value)
+      }
+    })
+
+    const localPrayerTimeFontSize = computed({
+      get() {
+        return props.prayerTimeFontSize
+      },
+      set(value) {
+        emit('update:prayer-time-font-size', value)
+      }
+    })
+
+    const localPrayerNameFontSize = computed({
+      get() {
+        return props.prayerNameFontSize
+      },
+      set(value) {
+        emit('update:prayer-name-font-size', value)
+      }
+    })
+
     // Track expanded state of sections
     const expandedSections = ref({
       location: false,
       hijri: false,
       iqamah: false,
       messages: false,
-      images: false
+      images: false,
+      font_setting: false,
     })
 
     const closeDrawer = () => {
@@ -283,6 +371,9 @@ export default defineComponent({
       expandedSections.value.location = false
       expandedSections.value.hijri = false
       expandedSections.value.iqamah = false
+      expandedSections.value.messages = false
+      expandedSections.value.images = false
+      expandedSections.value.font_setting = false
       emit('update:modelValue', false)
     }
 
@@ -458,6 +549,9 @@ export default defineComponent({
         expandedSections.value.location = false
         expandedSections.value.hijri = false
         expandedSections.value.iqamah = false
+        expandedSections.value.messages = false
+        expandedSections.value.images = false
+        expandedSections.value.font_setting = false
       }
     })
 
@@ -523,6 +617,9 @@ export default defineComponent({
       localMessages,
       localImages,
       expandedSections,
+      localPrayerNameFontSize,
+      localPrayerTimeFontSize,
+      localMainClockSize,
       closeDrawer,
       updateOffset,
       updateHijriOffset,
