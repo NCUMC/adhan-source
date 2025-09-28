@@ -203,7 +203,7 @@
             <!-- Preview -->
             <q-img
               :src="image.url"
-              :ratio="16/9"
+              :ratio="1"
               class="q-mt-xs"
               style="max-width: 200px"
               @error="handleImageError(index)"
@@ -590,7 +590,7 @@ export default defineComponent({
     const removeImage = (index) => {
       localImages.value.splice(index, 1)
       if (localImages.value.length === 0) {
-        localImages.value.push({ url: '/icons/NCU_logo_crop.png', duration: 10 })
+        localImages.value.push({ url: '/quotes.jpeg', duration: 2 })
       }
       updateImages()
     }

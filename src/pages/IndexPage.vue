@@ -18,7 +18,7 @@
        <div class="col-sm-8 col-12 full-height gt-xs" v-if="$q.platform.is.desktop">
          <div class="row items-center full-height">
            <div class="col text-left">
-             <div class="text-secondary q-pl-sm dynamic-font-size" :style="'font-size:'+mainClockSize +'vh'">
+             <div class="q-pl-lg dynamic-font-size" :style="'font-size:'+mainClockSize +'vh'">
                {{ currentTime }}
              </div>
            </div>
@@ -91,10 +91,10 @@
                <span class="text-secondary text-bold text-xl-20">{{String(upcomingMinute).padStart(2, '0')}}</span>
                <span class="text-h2">m</span>
              </div> -->
-             <div v-if="currentImage" class="rotating-image">
+             <div v-if="currentImage" class="rotating-image overflow-hidden" style="max-height: 82vh;">
                <q-img
                  :src="currentImage"
-                 :ratio="16/9"
+                 :ratio="1"
                  width="67vw"
                  class="rounded-borders"
                />
