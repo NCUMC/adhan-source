@@ -190,6 +190,7 @@
                 dense filled bg-color="white" label-color="white"
                 class="col-3"
                 type="number"
+                min="1"
                 v-model.number="image.duration"
                 @update:model-value="updateImages"
               />
