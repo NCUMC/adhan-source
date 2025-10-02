@@ -103,7 +103,7 @@
            
            <!-- Countdown status: Show countdown to Iqamah -->
            <div v-else-if="prayerStatus === 'countdown'">
-             <div class="text-h1 text-white">{{currentPrayerInProgress}} Prayer - Iqamah in</div>
+             <div class="text-h3 text-white">{{currentPrayerInProgress}} Prayer - Iqamah in</div>
              <div :style="'font-size:'+mainClockSize+'vh'">
                <span class="dynamic-font-size text-white text-bolder">{{String(countdownMinutes).padStart(2, '0')}}</span>
                <span class="dynamic-font-size text-white">:</span>
@@ -113,7 +113,7 @@
            
            <!-- In progress status: Show prayer in progress -->
            <div v-else-if="prayerStatus === 'in-progress'">
-             <div class="text-h2 text-white">{{currentPrayerInProgress}} Prayer in Progress</div>
+             <div class="text-h2 text-white q-mb-md">{{currentPrayerInProgress}} Prayer in Progress</div>
            </div>
 
            <div>
