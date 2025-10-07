@@ -83,20 +83,23 @@
        <div class="col-sm-8 col-xs-12 bg-grey-10 text-center flex flex-center gt-xs overflow-hidden" v-if="$q.platform.is.desktop">
          <div>
            <!-- Normal status: Show upcoming prayer and rotating images -->
-           <div v-if="prayerStatus === 'normal'">
-             <div v-if="showUpcomingCountdown" class="text-h1 text-white">{{upcomingPrayer}} in</div>
-             <div v-if="showUpcomingCountdown">
-               <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
-               <span class="text-h2 text-white" v-if="upcomingHour > 0">h</span>
-               <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'">{{String(upcomingMinute).padStart(2, '0')}}</span>
-               <span class="text-h2 text-white">m</span>
-             </div>
-             <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" style="max-height: 82vh;">
+           <div v-if="prayerStatus === 'normal'" :class="longBreak ? 'fixed-full bg-black' : ''" style="z-index: 99">
+              <div v-if="showUpcomingCountdown" class="text-center full-width full-height" :style="longBreak ? ('margin-top:' + ((upcomingMinute % 3) + 1) * 10 + 'vh') : ''">
+                <div v-if="longBreak" class="text-white" :style="'font-size:' + mainClockSize + 'vh'">{{ currentTime}}</div>
+                <div class="text-h1 text-white">{{upcomingPrayer}} in</div>
+                <div>
+                  <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
+                  <span class="text-h2 text-white" v-if="upcomingHour > 0">h</span>
+                  <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'">{{String(upcomingMinute).padStart(2, '0')}}</span>
+                  <span class="text-h2 text-white">m</span>
+                </div>
+              </div>
+             <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" :style="longBreak? 'height: 100vh;width: 100vw;' : 'max-height: 82vh;width: 67vw;'">
                <q-img
                  :src="currentImage"
                  :ratio="1"
-                 width="67vw"
-                 class="rounded-borders"
+                 class="rounded-borders full-height"
+                 :fit="longBreak? 'contain' : 'cover'"
                />
              </div>
            </div>
@@ -212,7 +215,7 @@
 </style>
 
 <script>
-import { defineComponent, ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { defineComponent, ref, reactive, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
 import prayerData from 'assets/timetable.json'
 import SettingsDrawer from 'components/SettingsDrawer.vue'
 import { openURL } from 'quasar'
@@ -236,6 +239,7 @@ export default defineComponent({
     const mainClockSize = ref(localStorage.getItem('mainClockSize') || 15)
     const prayerTimeFontSize = ref(localStorage.getItem('prayerTimeFontSize') || 8)
     const prayerNameFontSize = ref(localStorage.getItem('prayerNameFontSize') || 5)
+    const longBreak = ref(false)
 
     // Data properties moved from data() to setup
     const currentPrayerTime = reactive({
@@ -699,6 +703,18 @@ export default defineComponent({
     // Initialize Hijri offset
     loadHijriOffset()
 
+    // Set longBreak when there's a long gap to the upcoming prayer while in normal status
+    watchEffect(() => {
+      if (prayerStatus.value === 'normal') {
+        // upcomingMinutes is already the total minutes until the upcoming prayer
+        const minutesUntil = upcomingMinutes.value
+        // If there are more than 15 minutes until the upcoming prayer, mark as long break
+        longBreak.value = minutesUntil > 15
+      } else {
+        longBreak.value = false
+      }
+    })
+
     
     // Return all the needed template refs and functions
     return {
@@ -751,6 +767,7 @@ export default defineComponent({
       currentMessage,
       updateMessages,
       updateImages, // Add updateImages to the returned object
+      longBreak,
       openURL
     }
   }
