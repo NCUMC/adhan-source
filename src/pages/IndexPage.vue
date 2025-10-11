@@ -120,7 +120,7 @@
            </div>
 
            <div>
-             <span v-if="prayerStatus !== 'normal'" class="text-h3 text-white text-weight-normal">{{ currentMessage }}</span>
+             <span v-if="prayerStatus !== 'normal'" class="text-h2 text-white text-weight-normal">{{ currentMessage }}</span>
            </div>
            <div class="fixed-bottom-right q-pa-sm bg-white rounded-borders">
              <span @click="openURL('https://www.instagram.com/ncu.muslimclub')" class="cursor-pointer text-subtitle1"><q-icon name="fa-brands fa-instagram" class="q-mr-xs" color="secondary"/>@ncu.muslimclub</span>
@@ -240,6 +240,9 @@ export default defineComponent({
     const prayerTimeFontSize = ref(localStorage.getItem('prayerTimeFontSize') || 8)
     const prayerNameFontSize = ref(localStorage.getItem('prayerNameFontSize') || 5)
     const longBreak = ref(false)
+
+  // When we've applied tomorrow's times to currentPrayerTime, mark this so we don't reapply every second
+  const appliedTomorrow = ref(false)
 
     // Data properties moved from data() to setup
     const currentPrayerTime = reactive({
@@ -428,9 +431,58 @@ export default defineComponent({
         upcomingMinute.value = upcomingMinutes.value - upcomingHour.value * 60
       }
       
+      // If a prayer was found for today, we should clear any appliedTomorrow marker so it can be applied again later
+      if (!checkTomorrow) {
+        appliedTomorrow.value = false
+      }
+
+      // If no prayer was found for the rest of today, use tomorrow's timetable.
+      // Apply tomorrow's times only once (guarded by appliedTomorrow).
       if (foundPrayer === false && checkTomorrow) {
+        // Apply tomorrow times to currentPrayerTime only once
+        if (!appliedTomorrow.value) {
+          const tomorrow = new Date()
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          const tMonth = tomorrow.getMonth()
+          const tCluster = clusterSet(tomorrow.getDate())
+          const tMonthData = prayerData[tMonth] || []
+          const tDayData = tMonthData[tCluster] || {}
+
+          // Copy tomorrow times into currentPrayerTime (names)
+          for (var idx2 in names) {
+            let nm = names[idx2]
+            var timeString2 = tDayData[nm] || '00:00'
+            var parts2 = timeString2.split(':')
+            var minute2 = parseInt(parts2[1])
+            var hour2 = parseInt(parts2[0])
+            var minutes2 = hour2*60 + minute2 + parseInt(offset)
+            hour2 = Math.floor(minutes2/60)
+            minute2 = minutes2 - hour2*60
+            if (hour2 >= 24) {
+              hour2 -= 24
+            }
+            currentPrayerTime[nm] = String(hour2).padStart(2, '0') + ':' + String(minute2).padStart(2, '0')
+          }
+
+          // Calculate Sunrise for tomorrow's Fajr
+          var fajrTime2 = currentPrayerTime['Fajr']
+          var fajrParts2 = fajrTime2.split(':')
+          var fajrHour2 = parseInt(fajrParts2[0])
+          var fajrMinute2 = parseInt(fajrParts2[1])
+          var sunriseMinutes2 = fajrHour2*60 + fajrMinute2 + 70
+          var sunriseHour2 = Math.floor(sunriseMinutes2/60)
+          var sunriseMinute2 = sunriseMinutes2 - sunriseHour2*60
+          if (sunriseHour2 >= 24) {
+            sunriseHour2 -= 24
+          }
+          currentPrayerTime['Sunrise'] = String(sunriseHour2).padStart(2, '0') + ':' + String(sunriseMinute2).padStart(2, '0')
+
+          appliedTomorrow.value = true
+        }
+
+        // Use the already-applied currentPrayerTime (which now contains tomorrow's Fajr)
         let name = 'Fajr'
-        var timeString = dayData[name] || '00:00'
+        var timeString = currentPrayerTime[name] || '00:00'
         var parts = timeString.split(':')
         var minute = parseInt(parts[1])
         var hour = parseInt(parts[0])
