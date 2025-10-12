@@ -86,7 +86,7 @@
            <div v-if="prayerStatus === 'normal'" :class="longBreak ? 'fixed-full bg-black' : ''" style="z-index: 99">
               <div v-if="showUpcomingCountdown" class="text-center full-width full-height" :style="longBreak ? ('margin-top:' + ((upcomingMinute % 3) + 1) * 10 + 'vh') : ''">
                 <div v-if="longBreak" class="text-white" :style="'font-size:' + mainClockSize + 'vh'">{{ currentTime}}</div>
-                <div class="text-h1 text-white">{{upcomingPrayer}} in</div>
+                <div class="text-h1 text-white">{{upcomingPrayer}} {{ currentPrayerTime[upcomingPrayer] }}</div>
                 <div>
                   <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
                   <span class="text-h2 text-white" v-if="upcomingHour > 0">h</span>
@@ -301,19 +301,27 @@ export default defineComponent({
     const rotateImage = () => {
       if (images.value.length === 0) return
       
+      // Set up the display duration:
+      // - 1 minute (60000ms) for countdown
+      // - Configured duration for images
+      const duration = showUpcomingCountdown.value 
+        ? 60000  // 1 minute fixed for countdown
+        : images.value[currentImageIndex].duration * 1000 * 60
+
+      // Update current image (will be hidden during countdown)
       currentImage.value = images.value[currentImageIndex].url
-      const duration = images.value[currentImageIndex].duration * 1000 * 60
 
       // Clear existing interval
       if (imageInterval) clearTimeout(imageInterval)
 
-      // Set up next image
+      // Set up next rotation
       imageInterval = setTimeout(() => {
+        // Toggle between showing countdown and next image at each interval
+        showUpcomingCountdown.value = !showUpcomingCountdown.value
+        
+        // Only advance the image index when we're about to show an image (not countdown)
         if (!showUpcomingCountdown.value) {
           currentImageIndex = (currentImageIndex + 1) % images.value.length
-        }
-        if (currentImageIndex == 0) {
-          showUpcomingCountdown.value = !showUpcomingCountdown.value
         }
         rotateImage()
       }, duration)
