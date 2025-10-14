@@ -177,6 +177,11 @@
           label="Rotating Images (Minutes)"
           default-opened
         >
+          <q-checkbox
+            v-model.boolean="localEnableScreenSaver"
+            @update:model-value="updateEnableScreenSaver"
+            label="Enable Screen Saver"
+          />
           <div v-for="(image, index) in localImages" :key="index" class="q-mb-sm">
             <div class="row items-center q-gutter-sm">
               <q-input
@@ -276,11 +281,15 @@ export default defineComponent({
     },
     messages: {
         type: Array,
-        default: () => [{ text: 'Please keep your phone silent during prayer!', duration: 10 }]
+        default: () => [{ text: 'Please keep your phone silent during prayer!', duration: 1 }]
     },
     images: {
         type: Array,
-        default: () => [{ url: '/icons/NCU_logo_crop.png', duration: 10 }]
+        default: () => [{ url: 'quotes.jpeg', duration: 0.5 }]
+    },
+    enableScreenSaver: {
+        type: Boolean,
+        default: false
     }
   },
   emits: [
@@ -293,7 +302,8 @@ export default defineComponent({
     'refresh-hijri-data',
     'update:iqamah-config',
     'update:messages',
-    'update:images'
+    'update:images',
+    'update:enableScreenSaver'
   ],
   setup(props, { emit }) {
     const locationList = [
@@ -531,6 +541,22 @@ export default defineComponent({
       }
     }
 
+    // Screen saver setting (boolean)
+    const localEnableScreenSaver = ref(!!props.enableScreenSaver)
+
+    watch(
+      () => props.enableScreenSaver,
+      (val) => {
+        localEnableScreenSaver.value = !!val
+      }
+    )
+
+    function updateEnableScreenSaver() {
+      // Persist and emit boolean value
+      localStorage.setItem('enableScreenSaver', JSON.stringify(localEnableScreenSaver.value))
+      emit('update:enableScreenSaver', localEnableScreenSaver.value)
+    }
+
     // Iqamah Config
     const localIqamahConfig = ref({ ...props.iqamahConfig })
 
@@ -587,14 +613,14 @@ export default defineComponent({
     const localImages = ref([...props.images])
     
     const addImage = () => {
-      localImages.value.push({ url: '', duration: 10 })
+      localImages.value.push({ url: '', duration: 1 })
       updateImages()
     }
     
     const removeImage = (index) => {
       localImages.value.splice(index, 1)
       if (localImages.value.length === 0) {
-        localImages.value.push({ url: '/quotes.jpeg', duration: 2 })
+        localImages.value.push({ url: 'quotes.jpeg', duration: 0.5 })
       }
       updateImages()
     }
@@ -618,6 +644,7 @@ export default defineComponent({
       localOffset,
       localHijriOffset,
       localIqamahConfig,
+      localEnableScreenSaver,
       localMessages,
       localImages,
       expandedSections,
@@ -630,13 +657,14 @@ export default defineComponent({
       refreshHijriData,
       exportDailyCSV,
       updateIqamahConfig,
+      updateEnableScreenSaver,
       addMessage,
       removeMessage,
       updateMessages,
       addImage,
       removeImage,
       handleImageError,
-      updateImages
+      updateImages,
     }
   }
 })

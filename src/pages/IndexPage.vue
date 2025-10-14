@@ -57,6 +57,7 @@
         @update:iqamah-config="updateIqamahConfig"
         @update:messages="updateMessages"
         @update:images="updateImages"
+        @update:enableScreenSaver="updateEnableScreenSaver"
       />
       <div class="row full-height-viewport">
       <div class="col-sm-4 col-xs-12 bg-secondary full-height-viewport">
@@ -94,12 +95,12 @@
                   <span class="text-h2 text-white">m</span>
                 </div>
               </div>
-             <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" :style="longBreak? 'height: 100vh;width: 100vw;' : 'max-height: 82vh;width: 67vw;'">
+             <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" :style="longBreak? 'height: 100vh;width: 100vw;' : 'height: 82vh;width: 67vw;'">
                <q-img
                  :src="currentImage"
                  :ratio="1"
                  class="rounded-borders full-height"
-                 :fit="longBreak? 'contain' : 'cover'"
+                 fit="contain"
                />
              </div>
            </div>
@@ -270,10 +271,13 @@ export default defineComponent({
     const extraMinutes = ref(0)
     const notifEnabled = ref(true)
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
+  // Load saved screen saver setting (boolean)
+  const storedScreenSaver = localStorage.getItem('enableScreenSaver')
+  const enableScreenSaver = ref(storedScreenSaver ? JSON.parse(storedScreenSaver) : false)
     
     // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
-    const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"/icons/logo.png","duration":10}]'))
+    const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"quotes.jpeg","duration":0.5}]'))
     const currentMessage = ref(messages.value[0]?.text || '')
     const currentImage = ref(images.value[0]?.url || '')
     const showUpcomingCountdown = ref(false)
@@ -305,7 +309,7 @@ export default defineComponent({
       // - 1 minute (60000ms) for countdown
       // - Configured duration for images
       const duration = showUpcomingCountdown.value 
-        ? 60000  // 1 minute fixed for countdown
+        ? 30000  // 1 minute fixed for countdown
         : images.value[currentImageIndex].duration * 1000 * 60
 
       // Update current image (will be hidden during countdown)
@@ -560,6 +564,12 @@ export default defineComponent({
       localStorage.setItem('iqamahConfig', JSON.stringify(iqamahConfig.value))
     }
 
+    const updateEnableScreenSaver = (newVal) => {
+      // newVal is expected to be a boolean
+      enableScreenSaver.value = !!newVal
+      localStorage.setItem('enableScreenSaver', JSON.stringify(enableScreenSaver.value))
+    }
+
     const updateMessages = (newMessages) => {
       messages.value = [...newMessages]
       localStorage.setItem('messages', JSON.stringify(messages.value))
@@ -643,8 +653,8 @@ export default defineComponent({
       }
       
       const monthNames = [
-        'Muharram', 'Safar', 'Rabi\' al-awwal', 'Rabi\' al-thani',
-        'Jumada al-awwal', 'Jumada al-thani', 'Rajab', 'Sha\'ban',
+        'Muharram', 'Safar', 'Rabi 1', 'Rabi 2',
+        'Jumada 1', 'Jumada 2', 'Rajab', 'Sha\'ban',
         'Ramadan', 'Shawwal', 'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
       ]
       
@@ -769,7 +779,7 @@ export default defineComponent({
         // upcomingMinutes is already the total minutes until the upcoming prayer
         const minutesUntil = upcomingMinutes.value
         // If there are more than 15 minutes until the upcoming prayer, mark as long break
-        longBreak.value = minutesUntil > 15
+        longBreak.value = (minutesUntil > 15) && enableScreenSaver.value
       } else {
         longBreak.value = false
       }
@@ -805,6 +815,7 @@ export default defineComponent({
       extraMinutes,
       notifEnabled,
       iqamahConfig,
+      enableScreenSaver,
       prayerTableData,
       mainClockSize,
       prayerTimeFontSize,
@@ -822,6 +833,7 @@ export default defineComponent({
       startPrayerInProgress,
       returnToNormal,
       updateIqamahConfig,
+      updateEnableScreenSaver,
       requestNotif,
       messages,
       currentMessage,
