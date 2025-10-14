@@ -272,8 +272,8 @@ export default defineComponent({
     const notifEnabled = ref(true)
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
   // Load saved screen saver setting (boolean)
-  const storedScreenSaver = localStorage.getItem('enableScreenSaver')
-  const enableScreenSaver = ref(storedScreenSaver ? JSON.parse(storedScreenSaver) : false)
+  const enableScreenSaver = ref(false)
+  const screenSaverReady = ref(false)
     
     // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
@@ -346,13 +346,18 @@ export default defineComponent({
 
     // Move mounted logic to onMounted
     onMounted(() => {
+      // Load screensaver setting synchronously
+      const storedScreenSaver = localStorage.getItem('enableScreenSaver')
+      enableScreenSaver.value = storedScreenSaver ? JSON.parse(storedScreenSaver) : false
+      screenSaverReady.value = true
+
       const dateObj = new Date()
       currentHour.value = dateObj.getHours()
       currentMinute.value = dateObj.getMinutes()
       month.value = dateObj.getMonth()
       date.value = dateObj.getDate()
       dateCluster.value = clusterSet(date.value)
-      
+
       // Start message and image rotation
       rotateMessage()
       rotateImage()
@@ -360,7 +365,7 @@ export default defineComponent({
       // Initialize and start the clock
       updateTime()
       clockInterval = setInterval(updateTime, 1000)
-      
+
       // We'll handle the countdown in updateTime function instead
       if ("Notification" in window && 
           Notification.permission !== "granted" && 
@@ -775,6 +780,10 @@ export default defineComponent({
 
     // Set longBreak when there's a long gap to the upcoming prayer while in normal status
     watchEffect(() => {
+      if (!screenSaverReady.value) {
+        longBreak.value = false
+        return
+      }
       if (prayerStatus.value === 'normal') {
         // upcomingMinutes is already the total minutes until the upcoming prayer
         const minutesUntil = upcomingMinutes.value

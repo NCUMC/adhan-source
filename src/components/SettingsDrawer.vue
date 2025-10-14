@@ -178,7 +178,7 @@
           default-opened
         >
           <q-checkbox
-            v-model.boolean="localEnableScreenSaver"
+            v-model="localEnableScreenSaver"
             @update:model-value="updateEnableScreenSaver"
             label="Enable Screen Saver"
           />
@@ -245,7 +245,7 @@
 </template>
 
 <script>
-import { defineComponent, computed, ref, watch } from 'vue'
+import { defineComponent, computed, ref, watch, onMounted } from 'vue'
 import prayerData from 'assets/timetable.json'
 
 export default defineComponent({
@@ -306,6 +306,13 @@ export default defineComponent({
     'update:enableScreenSaver'
   ],
   setup(props, { emit }) {
+        // Move mounted logic to onMounted
+    onMounted(() => {
+      // Load screensaver setting synchronously
+      const storedScreenSaver = localStorage.getItem('enableScreenSaver')
+      localEnableScreenSaver.value = storedScreenSaver ? JSON.parse(storedScreenSaver) : false
+    })
+
     const locationList = [
       {label: 'Taipei', value: 0},
       {label: 'Taoyuan, Yanmai', value: 2},
@@ -542,8 +549,10 @@ export default defineComponent({
     }
 
     // Screen saver setting (boolean)
-    const localEnableScreenSaver = ref(!!props.enableScreenSaver)
+    const localEnableScreenSaver = ref(false)
 
+    // Sync with parent prop on mount and when prop changes
+    localEnableScreenSaver.value = !!props.enableScreenSaver
     watch(
       () => props.enableScreenSaver,
       (val) => {
