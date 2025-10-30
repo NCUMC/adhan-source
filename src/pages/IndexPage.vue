@@ -86,7 +86,8 @@
            <!-- Normal status: Show upcoming prayer and rotating images -->
            <div v-if="prayerStatus === 'normal'" :class="longBreak ? 'fixed-full bg-black' : ''" style="z-index: 99" @click="toggleRightDrawer">
               <div v-if="showUpcomingCountdown" class="text-center full-width full-height" :style="longBreak ? ('margin-top:' + ((upcomingMinute % 3) + 1) * 10 + 'vh') : ''">
-                <div v-if="longBreak" class="text-white" :style="'font-size:' + mainClockSize + 'vh'">{{ currentTime}}</div>
+                <div v-if="longBreak" class="text-white" style='font-size:5vh;line-height:1em'>{{ currentDate }} | {{ hijriDate }}</div>
+                <div v-if="longBreak" class="text-white" :style="'font-size:' + mainClockSize + 'vh;line-height:1.2em'">{{ currentTime}}</div>
                 <div class="text-h1 text-white">{{upcomingPrayer}} {{ currentPrayerTime[upcomingPrayer] }}</div>
                 <div>
                   <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
