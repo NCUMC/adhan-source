@@ -269,14 +269,7 @@
               💡 HTTP error: Check if the URL is correct and the spreadsheet is accessible.
             </div>
           </div>
-          <div class="q-mt-md">
-            <q-toggle
-              v-model="autoSyncEnabled"
-              @update:model-value="updateAutoSync"
-              label="Auto-sync every 30 seconds"
-              color="white"
-            />
-          </div>
+
         </q-expansion-item>
       </div>
       <div class="text-h5 q-mt-lg">
@@ -713,7 +706,6 @@ export default defineComponent({
 
     // Google Sheets sync configuration
     const localSheetsUrl = ref(localStorage.getItem('sheetsUrl') || '')
-    const autoSyncEnabled = ref(JSON.parse(localStorage.getItem('autoSyncEnabled') || 'false'))
     const syncing = ref(false)
     const lastSyncTime = ref(localStorage.getItem('lastSyncTime') || '')
     const syncError = ref('')
@@ -721,10 +713,6 @@ export default defineComponent({
     const updateSheetsUrl = () => {
       localStorage.setItem('sheetsUrl', localSheetsUrl.value)
       emit('update:sheets-url', localSheetsUrl.value)
-    }
-
-    const updateAutoSync = () => {
-      localStorage.setItem('autoSyncEnabled', JSON.stringify(autoSyncEnabled.value))
     }
 
     const syncNow = async () => {
@@ -777,12 +765,10 @@ export default defineComponent({
       handleImageError,
       updateImages,
       localSheetsUrl,
-      autoSyncEnabled,
       syncing,
       lastSyncTime,
       syncError,
       updateSheetsUrl,
-      updateAutoSync,
       syncNow,
     }
   }

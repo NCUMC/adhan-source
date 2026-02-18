@@ -280,7 +280,6 @@ export default defineComponent({
   const screenSaverReady = ref(false)
     // Google Sheets sync configuration
     const sheetsUrl = ref(localStorage.getItem('sheetsUrl') || '')
-    const autoSyncEnabled = ref(JSON.parse(localStorage.getItem('autoSyncEnabled') || 'false'))
     // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
     const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"quotes.jpeg","duration":0.5}]'))
@@ -953,7 +952,7 @@ export default defineComponent({
       // Remove old listener if exists
       window.removeEventListener('online', syncConfigFromSheets)
 
-      if (autoSyncEnabled.value && sheetsUrl.value) {
+      if (sheetsUrl.value) {
         // Initial sync on setup
         syncConfigFromSheets()
 
@@ -963,9 +962,9 @@ export default defineComponent({
       }
     }
 
-    // Watch for changes in auto sync settings
-    watch([autoSyncEnabled, sheetsUrl], () => {
-      console.log('Auto sync settings changed')
+    // Watch for changes to sheets URL
+    watch(sheetsUrl, () => {
+      console.log('Sheets URL changed')
       setupAutoSync()
     })
 
