@@ -4,17 +4,17 @@
     <div class="q-mx-md q-mb-lg">
       <div class="row items-center justify-between q-mt-md">
         <div class="text-subtitle2">Simple Prayer Time</div>
-        <q-btn 
-          flat 
-          round 
-          icon="close" 
-          color="white" 
+        <q-btn
+          flat
+          round
+          icon="close"
+          color="white"
           @click="closeDrawer"
           class="q-ml-auto"
         />
       </div>
       <div>Based on Chinese Muslim Association (CMA) Calculation<br><a class="text-white" href="https://thpc.taiwantrade.com/Taiwan_mosque#a2">Source</a></div>
-      
+
       <div class="text-h5 q-mt-md">
         Settings
       </div>
@@ -26,14 +26,14 @@
         default-opened
       >
         <label>Location</label>
-        <q-select 
-          dense 
-          filled 
-          bg-color="white" 
-          emit-value 
-          map-options 
-          v-model="localOffset" 
-          label-color="white" 
+        <q-select
+          dense
+          filled
+          bg-color="white"
+          emit-value
+          map-options
+          v-model="localOffset"
+          label-color="white"
           :options="locationList"
           @update:model-value="updateOffset"
         />
@@ -49,36 +49,36 @@
         >
           <div class="q-mb-sm">
             <label>Main Clock Font Size (vh)</label>
-            <q-input 
-              dense 
-              filled 
-              bg-color="white" 
-              v-model.number="localMainClockSize" 
-              label-color="white" 
+            <q-input
+              dense
+              filled
+              bg-color="white"
+              v-model.number="localMainClockSize"
+              label-color="white"
               type="number"
               hint="Main clock font size in vh"
             />
           </div>
           <div class="q-mb-sm">
             <label>Prayer Time Font Size (vh)</label>
-            <q-input 
-              dense 
-              filled 
-              bg-color="white" 
-              v-model.number="localPrayerTimeFontSize" 
-              label-color="white" 
+            <q-input
+              dense
+              filled
+              bg-color="white"
+              v-model.number="localPrayerTimeFontSize"
+              label-color="white"
               type="number"
               hint="Prayer time font size in vh"
             />
           </div>
           <div class="q-mb-sm">
             <label>Prayer Name Font Size (vh)</label>
-            <q-input 
-              dense 
-              filled 
-              bg-color="white" 
-              v-model.number="localPrayerNameFontSize" 
-              label-color="white" 
+            <q-input
+              dense
+              filled
+              bg-color="white"
+              v-model.number="localPrayerNameFontSize"
+              label-color="white"
               type="number"
               hint="Prayer name font size in vh"
             />
@@ -93,21 +93,21 @@
           default-opened
         >
           <label>Date Adjustment (Days)</label>
-          <q-input 
-            dense 
-            filled 
-            bg-color="white" 
-            v-model.number="localHijriOffset" 
-            label-color="white" 
+          <q-input
+            dense
+            filled
+            bg-color="white"
+            v-model.number="localHijriOffset"
+            label-color="white"
             type="number"
             hint="Adjust Hijri date (+/- days)"
             @update:model-value="updateHijriOffset"
           />
-          <q-btn 
-            @click="refreshHijriData" 
-            color="white" 
+          <q-btn
+            @click="refreshHijriData"
+            color="white"
             text-color="secondary"
-            icon="refresh" 
+            icon="refresh"
             label="Refresh Date Data"
             class="full-width q-mt-sm"
           />
@@ -130,7 +130,7 @@
             />
           </div>
         </q-expansion-item>
-          
+
         <q-expansion-item
           v-model="expandedSections.messages"
           class="text-white"
@@ -223,15 +223,73 @@
             @click="addImage"
           />
         </q-expansion-item>
+
+        <q-expansion-item
+          v-model="expandedSections.sync"
+          class="text-white"
+          header-class="text-h5"
+          label="Google Sheets Sync"
+          default-opened
+        >
+          <div class="q-mb-sm">
+            <label>Google Sheets Config URL</label>
+            <q-input
+              dense
+              filled
+              bg-color="white"
+              v-model="localSheetsUrl"
+              label-color="white"
+              placeholder="https://docs.google.com/spreadsheets/d/.../export?format=csv&gid=0"
+              hint="Main config sheet URL (must be public/shared)"
+              @update:model-value="updateSheetsUrl"
+            />
+            <div class="text-caption q-mt-xs text-grey-5">
+              📌 Tip: URL should NOT contain 'api.cors.lol' or other proxies
+            </div>
+          </div>
+          <div class="row q-gutter-sm q-mt-md">
+            <q-btn
+              :loading="syncing"
+              :disable="!localSheetsUrl || syncing"
+              @click="syncNow"
+              color="white"
+              text-color="secondary"
+              icon="sync"
+              label="Sync Now"
+              class="col"
+            />
+          </div>
+          <div v-if="lastSyncTime" class="text-caption q-mt-sm">
+            ✓ Last sync: {{ lastSyncTime }}
+          </div>
+          <div v-if="syncError" class="text-caption text-negative q-mt-sm bg-negative-3 q-pa-sm rounded-borders">
+            <div class="text-weight-bold">❌ Sync Error:</div>
+            <div>{{ syncError }}</div>
+            <div v-if="syncError.includes('CORS')" class="q-mt-xs text-caption">
+              💡 CORS issue: Make sure the spreadsheet is publicly shared and URL is clean.
+            </div>
+            <div v-if="syncError.includes('HTTP')" class="q-mt-xs text-caption">
+              💡 HTTP error: Check if the URL is correct and the spreadsheet is accessible.
+            </div>
+          </div>
+          <div class="q-mt-md">
+            <q-toggle
+              v-model="autoSyncEnabled"
+              @update:model-value="updateAutoSync"
+              label="Auto-sync every 30 seconds"
+              color="white"
+            />
+          </div>
+        </q-expansion-item>
       </div>
       <div class="text-h5 q-mt-lg">
         Export
       </div>
-      <q-btn 
-        @click="exportDailyCSV" 
-        color="white" 
+      <q-btn
+        @click="exportDailyCSV"
+        color="white"
         text-color="secondary"
-        icon="download" 
+        icon="download"
         label="Export Daily Timetable CSV"
         class="full-width q-mt-sm"
       />
@@ -290,6 +348,10 @@ export default defineComponent({
     enableScreenSaver: {
         type: Boolean,
         default: false
+    },
+    sheetsUrl: {
+        type: String,
+        default: ''
     }
   },
   emits: [
@@ -303,7 +365,9 @@ export default defineComponent({
     'update:iqamah-config',
     'update:messages',
     'update:images',
-    'update:enableScreenSaver'
+    'update:enableScreenSaver',
+    'update:sheets-url',
+    'sync-config'
   ],
   setup(props, { emit }) {
         // Move mounted logic to onMounted
@@ -356,7 +420,7 @@ export default defineComponent({
         emit('update:main-clock-size', value)
       }
     })
-    
+
     const localPrayerTimeFontSize = computed({
       get() {
         return props.prayerTimeFontSize
@@ -366,7 +430,7 @@ export default defineComponent({
         emit('update:prayer-time-font-size', value)
       }
     })
-    
+
     const localPrayerNameFontSize = computed({
       get() {
         return props.prayerNameFontSize
@@ -385,6 +449,7 @@ export default defineComponent({
       messages: false,
       images: false,
       font_setting: false,
+      sync: false,
     })
 
     const closeDrawer = () => {
@@ -395,6 +460,7 @@ export default defineComponent({
       expandedSections.value.messages = false
       expandedSections.value.images = false
       expandedSections.value.font_setting = false
+      expandedSections.value.sync = false
       emit('update:modelValue', false)
     }
 
@@ -425,15 +491,15 @@ export default defineComponent({
     const calculateSunrise = (fajrTime) => {
       const [hours, minutes] = fajrTime.split(':').map(Number)
       let totalMinutes = hours * 60 + minutes + 70
-      
+
       // Handle day overflow
       if (totalMinutes >= 24 * 60) {
         totalMinutes -= 24 * 60
       }
-      
+
       const newHours = Math.floor(totalMinutes / 60)
       const newMinutes = totalMinutes % 60
-      
+
       return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
     }
 
@@ -441,7 +507,7 @@ export default defineComponent({
     const applyOffset = (timeString, offset) => {
       const [hours, minutes] = timeString.split(':').map(Number)
       let totalMinutes = hours * 60 + minutes + parseInt(offset)
-      
+
       // Handle day overflow
       if (totalMinutes >= 24 * 60) {
         totalMinutes -= 24 * 60
@@ -450,10 +516,10 @@ export default defineComponent({
       if (totalMinutes < 0) {
         totalMinutes += 24 * 60
       }
-      
+
       const newHours = Math.floor(totalMinutes / 60)
       const newMinutes = totalMinutes % 60
-      
+
       return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
     }
 
@@ -476,17 +542,17 @@ export default defineComponent({
       const month = date.getMonth()
       const day = date.getDate()
       const cluster = clusterSet(day)
-      
+
       const monthData = prayerData[month] || []
       const dayData = monthData[cluster] || {}
-      
+
       const times = {}
       const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
       prayerNames.forEach(name => {
         const baseTime = dayData[name] || '00:00'
         times[name] = applyOffset(baseTime, offset)
       })
-      
+
       return times
     }
 
@@ -502,21 +568,21 @@ export default defineComponent({
     const exportDailyCSV = () => {
       const currentYear = new Date().getFullYear()
       const csvData = []
-      
+
       // Add header
       csvData.push('DATE,FAJR,SUNRISE,DHUHR,ASR,MAGHRIB,ISHA')
-      
+
       // Generate data for each day of the year
       for (let month = 0; month < 12; month++) {
         const daysInMonth = getDaysInMonth(month, currentYear)
-        
+
         for (let day = 1; day <= daysInMonth; day++) {
           const date = new Date(currentYear, month, day)
           const prayerTimes = getPrayerTimesForDate(date, props.offset)
-          
+
           // Calculate sunrise (65 minutes after Fajr)
           const sunrise = calculateSunrise(prayerTimes.Fajr)
-          
+
           // Format the CSV row
           const row = [
             formatDate(date),
@@ -527,16 +593,16 @@ export default defineComponent({
             prayerTimes.Maghrib,
             prayerTimes.Isha
           ].join(',')
-          
+
           csvData.push(row)
         }
       }
-      
+
       // Create and download the CSV file
       const csvContent = csvData.join('\n')
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
-      
+
       if (link.download !== undefined) {
         const url = URL.createObjectURL(blob)
         link.setAttribute('href', url)
@@ -591,6 +657,7 @@ export default defineComponent({
         expandedSections.value.messages = false
         expandedSections.value.images = false
         expandedSections.value.font_setting = false
+        expandedSections.value.sync = false
       }
     })
 
@@ -620,12 +687,12 @@ export default defineComponent({
 
     // Image configuration
     const localImages = ref([...props.images])
-    
+
     const addImage = () => {
       localImages.value.push({ url: '', duration: 1 })
       updateImages()
     }
-    
+
     const removeImage = (index) => {
       localImages.value.splice(index, 1)
       if (localImages.value.length === 0) {
@@ -633,18 +700,56 @@ export default defineComponent({
       }
       updateImages()
     }
-    
+
     const handleImageError = (index) => {
       // You can show a notification or handle invalid image URLs here
       console.error(`Failed to load image at index ${index}:`, localImages.value[index].url)
     }
-    
+
     const updateImages = () => {
       emit('update:images', [...localImages.value])
     }
-    
+
     watch(() => props.images, (newVal) => {
       localImages.value = [...newVal]
+    })
+
+    // Google Sheets sync configuration
+    const localSheetsUrl = ref(localStorage.getItem('sheetsUrl') || '')
+    const autoSyncEnabled = ref(JSON.parse(localStorage.getItem('autoSyncEnabled') || 'false'))
+    const syncing = ref(false)
+    const lastSyncTime = ref(localStorage.getItem('lastSyncTime') || '')
+    const syncError = ref('')
+
+    const updateSheetsUrl = () => {
+      localStorage.setItem('sheetsUrl', localSheetsUrl.value)
+      emit('update:sheets-url', localSheetsUrl.value)
+    }
+
+    const updateAutoSync = () => {
+      localStorage.setItem('autoSyncEnabled', JSON.stringify(autoSyncEnabled.value))
+    }
+
+    const syncNow = async () => {
+      syncing.value = true
+      syncError.value = ''
+      try {
+        console.log('Emitting sync-config event')
+        await emit('sync-config')
+        lastSyncTime.value = new Date().toLocaleString()
+        localStorage.setItem('lastSyncTime', lastSyncTime.value)
+        console.log('Sync completed successfully')
+      } catch (error) {
+        const errorMsg = error?.message || error?.toString() || 'Sync failed'
+        console.error('Sync error caught:', errorMsg)
+        syncError.value = errorMsg
+      } finally {
+        syncing.value = false
+      }
+    }
+
+    watch(() => props.sheetsUrl, (newVal) => {
+      localSheetsUrl.value = newVal
     })
 
     return {
@@ -674,6 +779,14 @@ export default defineComponent({
       removeImage,
       handleImageError,
       updateImages,
+      localSheetsUrl,
+      autoSyncEnabled,
+      syncing,
+      lastSyncTime,
+      syncError,
+      updateSheetsUrl,
+      updateAutoSync,
+      syncNow,
     }
   }
 })

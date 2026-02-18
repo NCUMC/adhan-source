@@ -48,6 +48,7 @@
         :iqamah-config="iqamahConfig"
         :messages="messages"
         :images="images"
+        :sheets-url="sheetsUrl"
         @update:offset="updateOffset"
         @update:hijri-offset="updateHijriOffset"
         @update:main-clock-size="(val) => mainClockSize = val"
@@ -58,6 +59,8 @@
         @update:messages="updateMessages"
         @update:images="updateImages"
         @update:enableScreenSaver="updateEnableScreenSaver"
+        @update:sheets-url="(val) => sheetsUrl = val"
+        @sync-config="syncConfigFromSheets"
       />
       <div class="row full-height-viewport">
       <div class="col-sm-4 col-xs-12 bg-secondary full-height-viewport">
@@ -71,6 +74,9 @@
             <div class="prayer-name">
               <div class="text-capitalize text-bold dynamic-font-size" :style="'font-size:' + prayerNameFontSize + 'vh'">
                 {{ prayer.name }}
+                <span>
+                  <q-icon v-if="ramadhanOverrideActive && ['Fajr', 'Maghrib'].indexOf(prayer.name) > -1" name="star" color="white" size="xs" align="middle"/>
+                </span>
                 <span v-if="prayer.isUpcoming" class="lt-sm text-h4 text-lowercase"><br/><span class="text-secondary text-weight-light">In {{upcomingHour}}h : {{upcomingMinute}}m</span></span>
               </div>
             </div>
@@ -219,8 +225,10 @@
 <script>
 import { defineComponent, ref, reactive, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
 import prayerData from 'assets/timetable.json'
+import ramadhanData from 'assets/ramadhan_2026.json'
 import SettingsDrawer from 'components/SettingsDrawer.vue'
 import { openURL } from 'quasar'
+import { syncConfig, applyConfig } from 'boot/configSync.js'
 export default defineComponent({
   name: 'IndexPage',
   components: {
@@ -263,15 +271,17 @@ export default defineComponent({
     const upcomingMinutes = ref(0)
     const upcomingMinute = ref(0)
     const upcomingHour = ref(0)
+    const ramadhanOverrideActive = ref(false)
 
-    // Track when to update prayer times (after Isha)
-    const lastUpdateDate = ref('')
     const notifEnabled = ref(true)
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
   // Load saved screen saver setting (boolean)
   const enableScreenSaver = ref(false)
   const screenSaverReady = ref(false)
-
+    // Google Sheets sync configuration
+    const sheetsUrl = ref(localStorage.getItem('sheetsUrl') || '')
+    const autoSyncEnabled = ref(JSON.parse(localStorage.getItem('autoSyncEnabled') || 'false'))
+    let syncInterval = null
     // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
     const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"quotes.jpeg","duration":0.5}]'))
@@ -365,6 +375,11 @@ export default defineComponent({
           Notification.permission !== "denied") {
         notifEnabled.value = false
       }
+
+      // Start periodic sync if enabled (delayed to avoid conflicts)
+      setTimeout(() => {
+        startPeriodicSync()
+      }, 2000)
     })
 
     // Move unmounted logic to onUnmounted
@@ -377,6 +392,9 @@ export default defineComponent({
       }
       if (imageInterval) {
         clearTimeout(imageInterval)
+      }
+      if (syncInterval) {
+        clearInterval(syncInterval)
       }
     })
 
@@ -405,7 +423,7 @@ export default defineComponent({
     }
 
     // Calculate prayer times for a specific date
-    const calculatePrayerTimes = (date, offset) => {
+    const calculateBasePrayerTimes = (date, offset) => {
       const month = date.getMonth()
       const day = date.getDate()
       const cluster = clusterSet(day)
@@ -437,6 +455,49 @@ export default defineComponent({
       }
 
       return times
+    }
+
+    const calculateRamadhanOverrides = (date, offset) => {
+      const yearKey = String(date.getFullYear())
+      const monthKey = String(date.getMonth() + 1)
+      const dayKey = String(date.getDate())
+
+      const dayData = ramadhanData?.[yearKey]?.[monthKey]?.[dayKey]
+      if (!dayData) return null
+
+      const fajr = applyTimeOffset(dayData.fajr, offset)
+      const maghrib = applyTimeOffset(dayData.maghrib, offset)
+
+      if (!fajr || fajr === '00:00') {
+        return null
+      }
+
+      const [fajrHour, fajrMinute] = fajr.split(':').map(Number)
+      let sunriseMinutes = fajrHour * 60 + fajrMinute + 16
+      if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
+
+      const sunriseHour = Math.floor(sunriseMinutes / 60)
+      const sunriseMin = sunriseMinutes % 60
+
+      return {
+        'Fajr': fajr,
+        'Sunrise': String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMin).padStart(2, '0'),
+        'Maghrib': maghrib
+      }
+    }
+
+    const calculatePrayerTimes = (date, offset) => {
+      const baseTimes = calculateBasePrayerTimes(date, offset)
+      const overrides = calculateRamadhanOverrides(date, offset)
+
+      if (!overrides) {
+        return baseTimes
+      }
+
+      return {
+        ...baseTimes,
+        ...overrides
+      }
     }
 
     // Find upcoming prayer
@@ -484,55 +545,41 @@ export default defineComponent({
       return { name: null, minutesUntil: 0, hours: 0, minutes: 0 }
     }
 
-    // Check if we need to update prayer times (after Isha)
-    const shouldUpdatePrayerTimes = (now) => {
-      const dateString = now.toDateString()
-      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
-
-      // If it's a new date and we haven't updated yet
-      if (lastUpdateDate.value !== dateString) {
-        // Check if current time is after Isha
-        const ishaTime = currentPrayerTime['Isha']
-        if (ishaTime && ishaTime !== '00:00') {
-          const [ishaHour, ishaMinute] = ishaTime.split(':').map(Number)
-          const ishaTimeMinutes = ishaHour * 60 + ishaMinute
-
-          // If we're past Isha time, or if it's the first load
-          if (currentTimeMinutes > ishaTimeMinutes || lastUpdateDate.value === '') {
-            return true
-          }
-        } else if (lastUpdateDate.value === '') {
-          // First load, update anyway
-          return true
-        }
-      }
-
-      return false
-    }
-
     // Update prayer times for the current day
     const updatePrayerTimes = () => {
       const now = new Date()
-      const dateString = now.toDateString()
+      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
 
-      // Check if we should update prayer times
-      if (shouldUpdatePrayerTimes(now)) {
-        lastUpdateDate.value = dateString
-        console.log('Updating prayer times after Isha for:', dateString)
+      const todayTimes = calculatePrayerTimes(now, props.offset)
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const tomorrowTimes = calculatePrayerTimes(tomorrow, props.offset)
 
-        // Calculate tomorrow's prayer times (since we update after Isha)
-        const tomorrow = new Date(now)
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        const tomorrowTimes = calculatePrayerTimes(tomorrow, props.offset)
+      ramadhanOverrideActive.value = !!calculateRamadhanOverrides(now, props.offset)
 
-        // Update reactive prayer times with tomorrow's schedule
-        Object.keys(tomorrowTimes).forEach(prayer => {
-          currentPrayerTime[prayer] = tomorrowTimes[prayer]
-        })
+      const selectPrayerTime = (prayer) => {
+        const todayTime = todayTimes[prayer]
+        const tomorrowTime = tomorrowTimes[prayer]
+
+        if (!todayTime || todayTime === '00:00') {
+          return tomorrowTime || '00:00'
+        }
+
+        const [hours, minutes] = todayTime.split(':').map(Number)
+        const prayerTimeMinutes = hours * 60 + minutes
+
+        if (currentTimeMinutes >= prayerTimeMinutes) {
+          return tomorrowTime || todayTime
+        }
+
+        return todayTime
       }
 
+      prayerNames.value.forEach((prayer) => {
+        currentPrayerTime[prayer] = selectPrayerTime(prayer)
+      })
+
       // Always update upcoming prayer calculation
-      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
       const upcoming = findUpcomingPrayer(currentTimeMinutes, currentPrayerTime)
 
       upcomingPrayer.value = upcoming.name
@@ -635,8 +682,6 @@ export default defineComponent({
     watch(() => props.offset, (newVal, oldVal) => {
       if (newVal !== oldVal) {
         localStorage.setItem('offset', newVal)
-        // Force prayer times update when offset changes
-        lastUpdateDate.value = '' // Reset to force update
         updatePrayerTimes()
       }
     })
@@ -822,6 +867,116 @@ export default defineComponent({
       }
     })
 
+    // Sync configuration from Google Sheets
+    const syncConfigFromSheets = async () => {
+      if (!sheetsUrl.value || !navigator.onLine) {
+        console.log('Sync skipped:', !sheetsUrl.value ? 'No sheets URL' : 'Offline')
+        return
+      }
+
+      try {
+        console.log('Syncing config from Google Sheets...', sheetsUrl.value)
+        const syncedData = await syncConfig(sheetsUrl.value)
+        console.log('Synced data received:', syncedData)
+
+        // Validate synced data before applying
+        if (!syncedData || !syncedData.mainConfig) {
+          throw new Error('Invalid sync data: missing main config')
+        }
+
+        // Apply config with change detection
+        const { applied, hasChanges } = await applyConfig(syncedData)
+
+        if (!hasChanges) {
+          console.log('✓ Config is unchanged, skipping updates')
+          return
+        }
+
+        console.log('⚙️ Config changed, updating...')
+
+        // Update reactive refs with new values
+        if (applied.location !== null && applied.location !== undefined) {
+          console.log('Updating offset to:', applied.location)
+          emit('update:offset', applied.location)
+        }
+        if (applied.mainClockSize !== null && applied.mainClockSize !== undefined) {
+          console.log('Updating mainClockSize to:', applied.mainClockSize)
+          mainClockSize.value = applied.mainClockSize
+        }
+        if (applied.prayerTimeFontSize !== null && applied.prayerTimeFontSize !== undefined) {
+          console.log('Updating prayerTimeFontSize to:', applied.prayerTimeFontSize)
+          prayerTimeFontSize.value = applied.prayerTimeFontSize
+        }
+        if (applied.prayerNameFontSize !== null && applied.prayerNameFontSize !== undefined) {
+          console.log('Updating prayerNameFontSize to:', applied.prayerNameFontSize)
+          prayerNameFontSize.value = applied.prayerNameFontSize
+        }
+        if (applied.hijriOffset !== null && applied.hijriOffset !== undefined) {
+          console.log('Updating hijriOffset to:', applied.hijriOffset)
+          hijriOffset.value = applied.hijriOffset
+        }
+        if (applied.enableScreenSaver !== null && applied.enableScreenSaver !== undefined) {
+          console.log('Updating enableScreenSaver to:', applied.enableScreenSaver)
+          enableScreenSaver.value = applied.enableScreenSaver
+        }
+        if (applied.iqamahConfig !== null && applied.iqamahConfig !== undefined) {
+          console.log('Updating iqamahConfig to:', applied.iqamahConfig)
+          iqamahConfig.value = applied.iqamahConfig
+        }
+        if (applied.messages !== null && applied.messages !== undefined) {
+          console.log('Updating messages to:', applied.messages)
+          messages.value = applied.messages
+          currentMessageIndex = 0
+          rotateMessage()
+        }
+        if (applied.images !== null && applied.images !== undefined) {
+          console.log('Updating images to:', applied.images)
+          images.value = applied.images
+          currentImageIndex = 0
+          rotateImage()
+        }
+
+        // Force prayer times update
+        console.log('Forcing prayer times update with offset:', props.offset)
+        updatePrayerTimes()
+        updateTime()
+
+        console.log('✅ Config sync completed successfully')
+      } catch (error) {
+        const errorMsg = error?.message || error?.toString() || 'Unknown sync error'
+        console.error('❌ Failed to sync config:', errorMsg, error)
+        // Re-throw so parent can catch it
+        throw new Error(errorMsg)
+      }
+    }
+
+    // Start periodic sync if enabled
+    const startPeriodicSync = () => {
+      if (syncInterval) {
+        clearInterval(syncInterval)
+      }
+
+      if (autoSyncEnabled.value && sheetsUrl.value) {
+        // Initial sync
+        syncConfigFromSheets()
+
+        // Set up periodic sync every 30 seconds
+        syncInterval = setInterval(() => {
+          if (navigator.onLine) {
+            syncConfigFromSheets()
+          }
+        }, 300000)
+
+        console.log('Periodic sync started (every 30 seconds)')
+      }
+    }
+
+    // Watch for changes in auto sync settings
+    watch([autoSyncEnabled, sheetsUrl], () => {
+      console.log('Auto sync settings changed, restarting periodic sync')
+      startPeriodicSync()
+    })
+
 
     // Return all the needed template refs and functions
     return {
@@ -849,6 +1004,7 @@ export default defineComponent({
       notifEnabled,
       iqamahConfig,
       enableScreenSaver,
+      ramadhanOverrideActive,
       prayerTableData,
       mainClockSize,
       prayerTimeFontSize,
@@ -871,9 +1027,11 @@ export default defineComponent({
       messages,
       currentMessage,
       updateMessages,
-      updateImages, // Add updateImages to the returned object
+      updateImages,
       longBreak,
-      openURL
+      openURL,
+      sheetsUrl,
+      syncConfigFromSheets
     }
   }
 })
