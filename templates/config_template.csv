@@ -1,0 +1,14 @@
+setting,value
+location,0
+mainClockSize,20
+prayerTimeFontSize,11
+prayerNameFontSize,7
+hijriOffset,2
+enableScreenSaver,false
+fajrIqamah,20
+dhuhrIqamah,10
+asrIqamah,10
+maghribIqamah,20
+ishaIqamah,10
+slide_gid,123456789
+msg_gid,987654321
