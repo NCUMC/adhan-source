@@ -243,9 +243,6 @@
               hint="Main config sheet URL (must be public/shared)"
               @update:model-value="updateSheetsUrl"
             />
-            <div class="text-caption q-mt-xs text-grey-5">
-              📌 Tip: URL should NOT contain 'api.cors.lol' or other proxies
-            </div>
           </div>
           <div class="row q-gutter-sm q-mt-md">
             <q-btn

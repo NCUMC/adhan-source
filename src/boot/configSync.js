@@ -43,28 +43,7 @@ function parseCSV(csvText) {
   return data
 }
 
-/**
- * Validate Google Sheets URL format
- */
-function validateUrl(url) {
-  if (!url || typeof url !== 'string') {
-    throw new Error('URL is required and must be a string')
-  }
 
-  if (!url.includes('docs.google.com/spreadsheets')) {
-    throw new Error('URL must be a valid Google Sheets URL')
-  }
-
-  if (url.includes('api.cors.lol') || url.includes('cors-anywhere') || url.includes('proxy')) {
-    throw new Error('URL contains a CORS proxy - please use the direct Google Sheets export URL')
-  }
-
-  if (!url.includes('/export?format=csv')) {
-    throw new Error('URL must be a CSV export URL (contains /export?format=csv)')
-  }
-
-  return true
-}
 
 /**
  * Clean CORS proxy wrapper from URL if present
@@ -185,19 +164,14 @@ function buildSheetUrl(baseUrl, gid) {
  * Validates all data before returning
  */
 export async function syncConfig(sheetsUrl) {
-  // Validate URL first before any fetching
-  try {
-    validateUrl(sheetsUrl)
-  } catch (err) {
-    console.error('❌ URL validation failed:', err.message)
-    throw err
-  }
-
   if (!sheetsUrl) {
     throw new Error('Google Sheets URL is required')
   }
 
   try {
+    // Fetch main config data
+    const mainConfigData = await fetchCSV(sheetsUrl)
+    
     // Validate fetched data is not empty
     if (!mainConfigData || mainConfigData.length === 0) {
       throw new Error('Config sheet is empty - no data found')
