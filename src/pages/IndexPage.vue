@@ -281,7 +281,6 @@ export default defineComponent({
     // Google Sheets sync configuration
     const sheetsUrl = ref(localStorage.getItem('sheetsUrl') || '')
     const autoSyncEnabled = ref(JSON.parse(localStorage.getItem('autoSyncEnabled') || 'false'))
-    let syncInterval = null
     // Rotating content configuration
     const messages = ref(JSON.parse(localStorage.getItem('messages') || '[{"text":"Please keep your phone silent during prayer!","duration":10}]'))
     const images = ref(JSON.parse(localStorage.getItem('images') || '[{"url":"quotes.jpeg","duration":0.5}]'))
@@ -376,9 +375,9 @@ export default defineComponent({
         notifEnabled.value = false
       }
 
-      // Start periodic sync if enabled (delayed to avoid conflicts)
+      // Setup auto-sync if enabled (delayed to avoid conflicts)
       setTimeout(() => {
-        startPeriodicSync()
+        setupAutoSync()
       }, 2000)
     })
 
@@ -393,9 +392,8 @@ export default defineComponent({
       if (imageInterval) {
         clearTimeout(imageInterval)
       }
-      if (syncInterval) {
-        clearInterval(syncInterval)
-      }
+      // Remove online event listener
+      window.removeEventListener('online', syncConfigFromSheets)
     })
 
     // Helper function to get date cluster
@@ -950,31 +948,25 @@ export default defineComponent({
       }
     }
 
-    // Start periodic sync if enabled
-    const startPeriodicSync = () => {
-      if (syncInterval) {
-        clearInterval(syncInterval)
-      }
+    // Setup online/offline event listeners for auto-sync
+    const setupAutoSync = () => {
+      // Remove old listener if exists
+      window.removeEventListener('online', syncConfigFromSheets)
 
       if (autoSyncEnabled.value && sheetsUrl.value) {
-        // Initial sync
+        // Initial sync on setup
         syncConfigFromSheets()
 
-        // Set up periodic sync every 30 seconds
-        syncInterval = setInterval(() => {
-          if (navigator.onLine) {
-            syncConfigFromSheets()
-          }
-        }, 300000)
-
-        console.log('Periodic sync started (every 30 seconds)')
+        // Sync whenever connection is restored
+        window.addEventListener('online', syncConfigFromSheets)
+        console.log('Auto-sync enabled: syncing on page load and when connection restored')
       }
     }
 
     // Watch for changes in auto sync settings
     watch([autoSyncEnabled, sheetsUrl], () => {
-      console.log('Auto sync settings changed, restarting periodic sync')
-      startPeriodicSync()
+      console.log('Auto sync settings changed')
+      setupAutoSync()
     })
 
 

@@ -171,7 +171,7 @@ export async function syncConfig(sheetsUrl) {
   try {
     // Fetch main config data
     const mainConfigData = await fetchCSV(sheetsUrl)
-    
+
     // Validate fetched data is not empty
     if (!mainConfigData || mainConfigData.length === 0) {
       throw new Error('Config sheet is empty - no data found')
