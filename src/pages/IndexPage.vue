@@ -455,6 +455,8 @@ export default defineComponent({
     }
 
     const calculateRamadhanOverrides = (date, offset) => {
+      // Only Apply Offset starting from Taichung to the south
+      const localOffset = (offset > 2) ? (offset + 2) : 0
       const yearKey = String(date.getFullYear())
       const monthKey = String(date.getMonth() + 1)
       const dayKey = String(date.getDate())
@@ -462,15 +464,15 @@ export default defineComponent({
       const dayData = ramadhanData?.[yearKey]?.[monthKey]?.[dayKey]
       if (!dayData) return null
 
-      const fajr = applyTimeOffset(dayData.fajr, offset)
-      const maghrib = applyTimeOffset(dayData.maghrib, offset)
+      const fajr = applyTimeOffset(dayData.fajr, localOffset)
+      const maghrib = applyTimeOffset(dayData.maghrib, localOffset)
 
       if (!fajr || fajr === '00:00') {
         return null
       }
 
       const [fajrHour, fajrMinute] = fajr.split(':').map(Number)
-      let sunriseMinutes = fajrHour * 60 + fajrMinute + 16
+      let sunriseMinutes = fajrHour * 60 + fajrMinute + 66
       if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
 
       const sunriseHour = Math.floor(sunriseMinutes / 60)
