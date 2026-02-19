@@ -295,6 +295,7 @@
 <script>
 import { defineComponent, computed, ref, watch, onMounted } from 'vue'
 import prayerData from 'assets/timetable.json'
+import ramadhanData from 'assets/ramadhan_2026.json'
 
 export default defineComponent({
   name: 'SettingsDrawer',
@@ -554,6 +555,37 @@ export default defineComponent({
       return `${year}-${month}-${day}`
     }
 
+    // Get Ramadhan overrides for a specific date
+    const getRamadhanOverrides = (date, offset) => {
+      const yearKey = String(date.getFullYear())
+      const monthKey = String(date.getMonth() + 1)
+      const dayKey = String(date.getDate())
+
+      const dayData = ramadhanData?.[yearKey]?.[monthKey]?.[dayKey]
+      if (!dayData) return null
+
+      const fajr = applyOffset(dayData.fajr, offset)
+      const maghrib = applyOffset(dayData.maghrib, offset)
+
+      if (!fajr || fajr === '00:00') {
+        return null
+      }
+
+      // Calculate Sunrise as Fajr + 16 minutes
+      const [fajrHour, fajrMinute] = fajr.split(':').map(Number)
+      let sunriseMinutes = fajrHour * 60 + fajrMinute + 16
+      if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
+
+      const sunriseHour = Math.floor(sunriseMinutes / 60)
+      const sunriseMin = sunriseMinutes % 60
+
+      return {
+        'Fajr': fajr,
+        'Sunrise': String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMin).padStart(2, '0'),
+        'Maghrib': maghrib
+      }
+    }
+
     // Main export method
     const exportDailyCSV = () => {
       const currentYear = new Date().getFullYear()
@@ -568,16 +600,27 @@ export default defineComponent({
 
         for (let day = 1; day <= daysInMonth; day++) {
           const date = new Date(currentYear, month, day)
-          const prayerTimes = getPrayerTimesForDate(date, props.offset)
+          let prayerTimes = getPrayerTimesForDate(date, props.offset)
 
-          // Calculate sunrise (65 minutes after Fajr)
-          const sunrise = calculateSunrise(prayerTimes.Fajr)
+          // Check for Ramadhan overrides
+          const ramadhanOverrides = getRamadhanOverrides(date, props.offset)
+          if (ramadhanOverrides) {
+            // Use overrides for Fajr, Sunrise, and Maghrib during Ramadhan
+            prayerTimes = {
+              ...prayerTimes,
+              ...ramadhanOverrides
+            }
+          } else {
+            // Calculate sunrise (16 minutes after Fajr) for non-Ramadhan dates
+            const sunrise = calculateSunrise(prayerTimes.Fajr)
+            prayerTimes.Sunrise = sunrise
+          }
 
           // Format the CSV row
           const row = [
             formatDate(date),
             prayerTimes.Fajr,
-            sunrise,
+            prayerTimes.Sunrise,
             prayerTimes.Dhuhr,
             prayerTimes.Asr,
             prayerTimes.Maghrib,
