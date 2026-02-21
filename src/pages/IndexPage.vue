@@ -472,7 +472,7 @@ export default defineComponent({
       }
 
       const [fajrHour, fajrMinute] = fajr.split(':').map(Number)
-      let sunriseMinutes = fajrHour * 60 + fajrMinute + 66
+      let sunriseMinutes = fajrHour * 60 + fajrMinute + 76
       if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
 
       const sunriseHour = Math.floor(sunriseMinutes / 60)
