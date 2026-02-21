@@ -478,7 +478,7 @@ export default defineComponent({
       else return 2
     }
 
-    // Helper method to calculate sunrise time (65 minutes after Fajr)
+    // Helper method to calculate sunrise time (70 minutes after Fajr)
     const calculateSunrise = (fajrTime) => {
       const [hours, minutes] = fajrTime.split(':').map(Number)
       let totalMinutes = hours * 60 + minutes + 70
@@ -557,6 +557,7 @@ export default defineComponent({
 
     // Get Ramadhan overrides for a specific date
     const getRamadhanOverrides = (date, offset) => {
+      offset = (offset > 2) ? (offset + 2) : 0
       const yearKey = String(date.getFullYear())
       const monthKey = String(date.getMonth() + 1)
       const dayKey = String(date.getDate())
@@ -611,7 +612,7 @@ export default defineComponent({
               ...ramadhanOverrides
             }
           } else {
-            // Calculate sunrise (16 minutes after Fajr) for non-Ramadhan dates
+            // Calculate sunrise (70 minutes after Fajr) for non-Ramadhan dates
             const sunrise = calculateSunrise(prayerTimes.Fajr)
             prayerTimes.Sunrise = sunrise
           }
