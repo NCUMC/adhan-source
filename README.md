@@ -1,6 +1,6 @@
 # Quasar App (cma-adhan-pwa)
 
-Simple PWA app to show prayer time based on Chinese Muslim Association Calculation
+Simple PWA app to show prayer time based on the Muslim World League calculation method.
 
 ## Install the dependencies
 ```bash
@@ -42,10 +42,10 @@ See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-webpack/quas
 
 
 
-# Updating the Prayer Schedule Notes
+# Prayer Time Reference
 
-Update the CMA_Adhan_TimeTable.csv then run:
+The app now calculates prayer times directly with the Muslim World League formula.
 
-```bash
-python .\tools\csvToJson.py .\CMA_Adhan_TimeTable.csv .\src\assets\timetable.json
-```
+- Default reference coordinates: Zhongli District, Taoyuan City, Taiwan
+- Timezone used for prayer calculation and display: Asia/Taipei
+- Minute adjustments: +1 minute for all displayed times, +3 minutes for Maghrib

@@ -13,7 +13,7 @@
           class="q-ml-auto"
         />
       </div>
-      <div>Based on Chinese Muslim Association (CMA) Calculation<br><a class="text-white" href="https://thpc.taiwantrade.com/Taiwan_mosque#a2">Source</a></div>
+      <div>Based on Muslim World League calculation with Taiwan reference coordinates.</div>
 
       <div class="text-h5 q-mt-md">
         Settings
@@ -22,10 +22,10 @@
         v-model="expandedSections.location"
         class="text-white"
         header-class="text-h5"
-        label="Location"
+        label="Reference Location"
         default-opened
       >
-        <label>Location</label>
+        <label>Reference Location</label>
         <q-select
           dense
           filled
@@ -294,8 +294,7 @@
 
 <script>
 import { defineComponent, computed, ref, watch, onMounted } from 'vue'
-import prayerData from 'assets/timetable.json'
-import ramadhanData from 'assets/ramadhan_2026.json'
+import { calculatePrayerTimes, LOCATION_OPTIONS } from 'src/utils/prayerTimes'
 
 export default defineComponent({
   name: 'SettingsDrawer',
@@ -368,12 +367,7 @@ export default defineComponent({
       localEnableScreenSaver.value = storedScreenSaver ? JSON.parse(storedScreenSaver) : false
     })
 
-    const locationList = [
-      {label: 'Taipei', value: 0},
-      {label: 'Taoyuan, Yanmai', value: 2},
-      {label: 'Hsinchu, Taichung, Changhua', value: 3},
-      {label: 'Chiayi, Tainan, Kaoshiung, Pingtung', value: 5},
-    ]
+    const locationList = LOCATION_OPTIONS
 
     const isOpen = computed({
       get() {
@@ -471,49 +465,6 @@ export default defineComponent({
       emit('refresh-hijri-data')
     }
 
-    // Helper method to calculate cluster for date
-    const clusterSet = (dateNum) => {
-      if (dateNum < 11) return 0
-      else if (dateNum < 21) return 1
-      else return 2
-    }
-
-    // Helper method to calculate sunrise time (70 minutes after Fajr)
-    const calculateSunrise = (fajrTime) => {
-      const [hours, minutes] = fajrTime.split(':').map(Number)
-      let totalMinutes = hours * 60 + minutes + 70
-
-      // Handle day overflow
-      if (totalMinutes >= 24 * 60) {
-        totalMinutes -= 24 * 60
-      }
-
-      const newHours = Math.floor(totalMinutes / 60)
-      const newMinutes = totalMinutes % 60
-
-      return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
-    }
-
-    // Helper method to apply offset to time
-    const applyOffset = (timeString, offset) => {
-      const [hours, minutes] = timeString.split(':').map(Number)
-      let totalMinutes = hours * 60 + minutes + parseInt(offset)
-
-      // Handle day overflow
-      if (totalMinutes >= 24 * 60) {
-        totalMinutes -= 24 * 60
-      }
-      // Handle negative time (previous day)
-      if (totalMinutes < 0) {
-        totalMinutes += 24 * 60
-      }
-
-      const newHours = Math.floor(totalMinutes / 60)
-      const newMinutes = totalMinutes % 60
-
-      return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
-    }
-
     // Helper method to check if year is leap year
     const isLeapYear = (year) => {
       return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)
@@ -528,63 +479,12 @@ export default defineComponent({
       return daysInMonth[month]
     }
 
-    // Helper method to get prayer times for a specific date
-    const getPrayerTimesForDate = (date, offset) => {
-      const month = date.getMonth()
-      const day = date.getDate()
-      const cluster = clusterSet(day)
-
-      const monthData = prayerData[month] || []
-      const dayData = monthData[cluster] || {}
-
-      const times = {}
-      const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
-      prayerNames.forEach(name => {
-        const baseTime = dayData[name] || '00:00'
-        times[name] = applyOffset(baseTime, offset)
-      })
-
-      return times
-    }
-
     // Helper method to format date as YYYY-MM-DD
     const formatDate = (date) => {
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const day = String(date.getDate()).padStart(2, '0')
       return `${year}-${month}-${day}`
-    }
-
-    // Get Ramadhan overrides for a specific date
-    const getRamadhanOverrides = (date, offset) => {
-      offset = (offset > 2) ? (offset + 2) : 0
-      const yearKey = String(date.getFullYear())
-      const monthKey = String(date.getMonth() + 1)
-      const dayKey = String(date.getDate())
-
-      const dayData = ramadhanData?.[yearKey]?.[monthKey]?.[dayKey]
-      if (!dayData) return null
-
-      const fajr = applyOffset(dayData.fajr, offset)
-      const maghrib = applyOffset(dayData.maghrib, offset)
-
-      if (!fajr || fajr === '00:00') {
-        return null
-      }
-
-      // Calculate Sunrise as Fajr + 16 minutes
-      const [fajrHour, fajrMinute] = fajr.split(':').map(Number)
-      let sunriseMinutes = fajrHour * 60 + fajrMinute + 16
-      if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
-
-      const sunriseHour = Math.floor(sunriseMinutes / 60)
-      const sunriseMin = sunriseMinutes % 60
-
-      return {
-        'Fajr': fajr,
-        'Sunrise': String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMin).padStart(2, '0'),
-        'Maghrib': maghrib
-      }
     }
 
     // Main export method
@@ -601,21 +501,7 @@ export default defineComponent({
 
         for (let day = 1; day <= daysInMonth; day++) {
           const date = new Date(currentYear, month, day)
-          let prayerTimes = getPrayerTimesForDate(date, props.offset)
-
-          // Check for Ramadhan overrides
-          const ramadhanOverrides = getRamadhanOverrides(date, props.offset)
-          if (ramadhanOverrides) {
-            // Use overrides for Fajr, Sunrise, and Maghrib during Ramadhan
-            prayerTimes = {
-              ...prayerTimes,
-              ...ramadhanOverrides
-            }
-          } else {
-            // Calculate sunrise (70 minutes after Fajr) for non-Ramadhan dates
-            const sunrise = calculateSunrise(prayerTimes.Fajr)
-            prayerTimes.Sunrise = sunrise
-          }
+          const prayerTimes = calculatePrayerTimes(date, props.offset)
 
           // Format the CSV row
           const row = [

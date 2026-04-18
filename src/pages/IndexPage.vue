@@ -74,9 +74,6 @@
             <div class="prayer-name">
               <div class="text-capitalize text-bold dynamic-font-size" :style="'font-size:' + prayerNameFontSize + 'vh'">
                 {{ prayer.name }}
-                <span>
-                  <q-icon v-if="ramadhanOverrideActive && ['Fajr', 'Maghrib'].indexOf(prayer.name) > -1" name="star" color="white" size="xs" align="middle"/>
-                </span>
                 <span v-if="prayer.isUpcoming" class="lt-sm text-h4 text-lowercase"><br/><span class="text-secondary text-weight-light">In {{upcomingHour}}h : {{upcomingMinute}}m</span></span>
               </div>
             </div>
@@ -224,11 +221,10 @@
 
 <script>
 import { defineComponent, ref, reactive, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
-import prayerData from 'assets/timetable.json'
-import ramadhanData from 'assets/ramadhan_2026.json'
 import SettingsDrawer from 'components/SettingsDrawer.vue'
 import { openURL } from 'quasar'
 import { syncConfig, applyConfig } from 'boot/configSync.js'
+import { calculatePrayerTimes, getReferenceClockState } from 'src/utils/prayerTimes'
 export default defineComponent({
   name: 'IndexPage',
   components: {
@@ -260,6 +256,22 @@ export default defineComponent({
       'Maghrib': '00:00',
       'Isha': '00:00'
     })
+    const todayPrayerTime = reactive({
+      'Fajr': '00:00',
+      'Sunrise': '00:00',
+      'Dhuhr': '00:00',
+      'Asr': '00:00',
+      'Maghrib': '00:00',
+      'Isha': '00:00'
+    })
+    const tomorrowPrayerTime = reactive({
+      'Fajr': '00:00',
+      'Sunrise': '00:00',
+      'Dhuhr': '00:00',
+      'Asr': '00:00',
+      'Maghrib': '00:00',
+      'Isha': '00:00'
+    })
     const prayerNames = ref(['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
     const prayerColumns = ref([
       { name: 'prayer', label: 'Prayer', field: 'name', align: 'left' },
@@ -271,7 +283,6 @@ export default defineComponent({
     const upcomingMinutes = ref(0)
     const upcomingMinute = ref(0)
     const upcomingHour = ref(0)
-    const ramadhanOverrideActive = ref(false)
 
     const notifEnabled = ref(true)
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
@@ -345,9 +356,12 @@ export default defineComponent({
       }))
     })
 
+    const REFRESH_INTERVAL_MS = 15000
+
     // Clock interval reference for cleanup
     let clockInterval = null
-    let countdownInterval = null
+    let prayerRefreshInterval = null
+    let nextPrayerRefreshBoundary = null
 
     // Move mounted logic to onMounted
     onMounted(() => {
@@ -357,7 +371,8 @@ export default defineComponent({
       screenSaverReady.value = true
 
       // Initialize prayer times immediately
-      updatePrayerTimes()
+      const initialClock = getReferenceClockState(new Date())
+      updatePrayerTimes(initialClock)
 
       // Start message and image rotation
       rotateMessage()
@@ -366,6 +381,7 @@ export default defineComponent({
       // Initialize and start the clock (every second)
       updateTime()
       clockInterval = setInterval(updateTime, 1000)
+      prayerRefreshInterval = setInterval(checkPrayerTimeRefreshBoundary, REFRESH_INTERVAL_MS)
 
       // We'll handle the countdown in updateTime function instead
       if ("Notification" in window &&
@@ -385,6 +401,9 @@ export default defineComponent({
       if (clockInterval) {
         clearInterval(clockInterval)
       }
+      if (prayerRefreshInterval) {
+        clearInterval(prayerRefreshInterval)
+      }
       if (messageInterval) {
         clearTimeout(messageInterval)
       }
@@ -394,110 +413,6 @@ export default defineComponent({
       // Remove online event listener
       window.removeEventListener('online', syncConfigFromSheets)
     })
-
-    // Helper function to get date cluster
-    const clusterSet = (dateNum) => {
-      if (dateNum < 11) return 0
-      else if (dateNum < 21) return 1
-      else return 2
-    }
-
-    // Helper function to apply offset to time string
-    const applyTimeOffset = (timeString, offset) => {
-      if (!timeString || timeString === '00:00') return '00:00'
-
-      const [hours, minutes] = timeString.split(':').map(Number)
-      let totalMinutes = hours * 60 + minutes + parseInt(offset || 0)
-
-      // Handle day overflow
-      if (totalMinutes >= 24 * 60) totalMinutes -= 24 * 60
-      if (totalMinutes < 0) totalMinutes += 24 * 60
-
-      const newHours = Math.floor(totalMinutes / 60)
-      const newMinutes = totalMinutes % 60
-
-      return String(newHours).padStart(2, '0') + ':' + String(newMinutes).padStart(2, '0')
-    }
-
-    // Calculate prayer times for a specific date
-    const calculateBasePrayerTimes = (date, offset) => {
-      const month = date.getMonth()
-      const day = date.getDate()
-      const cluster = clusterSet(day)
-
-      const monthData = prayerData[month] || []
-      const dayData = monthData[cluster] || {}
-
-      const times = {
-        'Fajr': applyTimeOffset(dayData['Fajr'], offset),
-        'Dhuhr': applyTimeOffset(dayData['Dhuhr'], offset),
-        'Asr': applyTimeOffset(dayData['Asr'], offset),
-        'Maghrib': applyTimeOffset(dayData['Maghrib'], offset),
-        'Isha': applyTimeOffset(dayData['Isha'], offset)
-      }
-
-      // Calculate Sunrise (70 minutes after Fajr)
-      const fajrTime = times['Fajr']
-      if (fajrTime && fajrTime !== '00:00') {
-        const [fajrHour, fajrMinute] = fajrTime.split(':').map(Number)
-        let sunriseMinutes = fajrHour * 60 + fajrMinute + 70
-
-        if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
-
-        const sunriseHour = Math.floor(sunriseMinutes / 60)
-        const sunriseMin = sunriseMinutes % 60
-        times['Sunrise'] = String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMin).padStart(2, '0')
-      } else {
-        times['Sunrise'] = '00:00'
-      }
-
-      return times
-    }
-
-    const calculateRamadhanOverrides = (date, offset) => {
-      // Only Apply Offset starting from Taichung to the south
-      const localOffset = (offset > 2) ? (offset + 2) : 0
-      const yearKey = String(date.getFullYear())
-      const monthKey = String(date.getMonth() + 1)
-      const dayKey = String(date.getDate())
-
-      const dayData = ramadhanData?.[yearKey]?.[monthKey]?.[dayKey]
-      if (!dayData) return null
-
-      const fajr = applyTimeOffset(dayData.fajr, localOffset)
-      const maghrib = applyTimeOffset(dayData.maghrib, localOffset)
-
-      if (!fajr || fajr === '00:00') {
-        return null
-      }
-
-      const [fajrHour, fajrMinute] = fajr.split(':').map(Number)
-      let sunriseMinutes = fajrHour * 60 + fajrMinute + 76
-      if (sunriseMinutes >= 24 * 60) sunriseMinutes -= 24 * 60
-
-      const sunriseHour = Math.floor(sunriseMinutes / 60)
-      const sunriseMin = sunriseMinutes % 60
-
-      return {
-        'Fajr': fajr,
-        'Sunrise': String(sunriseHour).padStart(2, '0') + ':' + String(sunriseMin).padStart(2, '0'),
-        'Maghrib': maghrib
-      }
-    }
-
-    const calculatePrayerTimes = (date, offset) => {
-      const baseTimes = calculateBasePrayerTimes(date, offset)
-      const overrides = calculateRamadhanOverrides(date, offset)
-
-      if (!overrides) {
-        return baseTimes
-      }
-
-      return {
-        ...baseTimes,
-        ...overrides
-      }
-    }
 
     // Find upcoming prayer
     const findUpcomingPrayer = (currentTimeMinutes, prayerTimes) => {
@@ -522,7 +437,8 @@ export default defineComponent({
       }
 
       // If no prayer found today, get tomorrow's Fajr
-      const tomorrow = new Date()
+      const { referenceDate } = getReferenceClockState()
+      const tomorrow = new Date(referenceDate)
       tomorrow.setDate(tomorrow.getDate() + 1)
       const tomorrowTimes = calculatePrayerTimes(tomorrow, props.offset)
 
@@ -544,52 +460,29 @@ export default defineComponent({
       return { name: null, minutesUntil: 0, hours: 0, minutes: 0 }
     }
 
-    // Update prayer times for the current day
-    const updatePrayerTimes = () => {
-      const now = new Date()
-      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
+    const getDayKey = ({ year, month, day }) => {
+      const monthPadded = String(month).padStart(2, '0')
+      const dayPadded = String(day).padStart(2, '0')
+      return `${year}-${monthPadded}-${dayPadded}`
+    }
 
-      const todayTimes = calculatePrayerTimes(now, props.offset)
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const tomorrowTimes = calculatePrayerTimes(tomorrow, props.offset)
+    const setPrayerMap = (targetMap, sourceMap) => {
+      prayerNames.value.forEach((prayer) => {
+        targetMap[prayer] = sourceMap[prayer] || '00:00'
+      })
+    }
 
-      ramadhanOverrideActive.value = !!calculateRamadhanOverrides(now, props.offset)
-
-      const selectPrayerTime = (prayer) => {
-        const todayTime = todayTimes[prayer]
-        const tomorrowTime = tomorrowTimes[prayer]
-
-        if (!todayTime || todayTime === '00:00') {
-          return tomorrowTime || '00:00'
-        }
-
-        const [hours, minutes] = todayTime.split(':').map(Number)
-        const prayerTimeMinutes = hours * 60 + minutes
-
-        // Keep showing today's time for the currently active prayer
-        // while it is in countdown / in-progress state.
-        const isCurrentPrayerActive =
-          currentPrayerInProgress.value === prayer &&
-          (prayerStatus.value === 'countdown' || prayerStatus.value === 'in-progress')
-
-        if (isCurrentPrayerActive) {
-          return todayTime
-        }
-
-        if (currentTimeMinutes >= prayerTimeMinutes) {
-          return tomorrowTime || todayTime
-        }
-
-        return todayTime
+    const getPrayerMinutes = (timeString) => {
+      if (!timeString || timeString === '00:00') {
+        return null
       }
 
-      prayerNames.value.forEach((prayer) => {
-        currentPrayerTime[prayer] = selectPrayerTime(prayer)
-      })
+      const [hours, minutes] = timeString.split(':').map(Number)
+      return hours * 60 + minutes
+    }
 
-      // Always update upcoming prayer calculation
-      const upcoming = findUpcomingPrayer(currentTimeMinutes, currentPrayerTime)
+    const updateUpcomingPrayerState = (currentTimeMinutes) => {
+      const upcoming = findUpcomingPrayer(currentTimeMinutes, todayPrayerTime)
 
       upcomingPrayer.value = upcoming.name
       upcomingMinutes.value = upcoming.minutesUntil
@@ -597,25 +490,138 @@ export default defineComponent({
       upcomingMinute.value = upcoming.minutes
     }
 
-    const checkPrayerTimeMatch = () => {
-      if (prayerStatus.value !== 'normal') return
+    const getPrayerRefreshMinute = (prayerName, timeString) => {
+      const prayerTimeMinutes = getPrayerMinutes(timeString)
 
-      const now = new Date()
-      const curHour = now.getHours()
-      const curMinute = now.getMinutes()
-      const currentTimeMinutes = curHour * 60 + curMinute
-
-      for (const [prayerName, timeString] of Object.entries(currentPrayerTime)) {
-        if (timeString && timeString !== '00:00') {
-          const [hours, minutes] = timeString.split(':').map(Number)
-          const prayerTimeMinutes = hours * 60 + minutes
-
-          if (Math.abs(currentTimeMinutes - prayerTimeMinutes) <= 1) {
-            startCountdownToIqamah(prayerName)
-            return
-          }
-        }
+      if (prayerTimeMinutes === null) {
+        return null
       }
+
+      if (prayerName === 'Sunrise') {
+        return prayerTimeMinutes
+      }
+
+      const iqamahThreshold = iqamahConfig.value[prayerName] || 0
+      return getIqamahTargetMinutes(prayerName, prayerTimeMinutes, iqamahThreshold)
+    }
+
+    const getNextRefreshMinuteFromPrayerMap = (prayerMap, currentTimeMinutes = null) => {
+      let nextMinute = null
+
+      prayerNames.value.forEach((prayerName) => {
+        const refreshMinute = getPrayerRefreshMinute(prayerName, prayerMap[prayerName])
+        if (refreshMinute === null) {
+          return
+        }
+
+        if (currentTimeMinutes !== null && refreshMinute <= currentTimeMinutes) {
+          return
+        }
+
+        if (nextMinute === null || refreshMinute < nextMinute) {
+          nextMinute = refreshMinute
+        }
+      })
+
+      return nextMinute
+    }
+
+    const scheduleNextPrayerTimeRefresh = (clockState) => {
+      const currentTimeMinutes = clockState.hour * 60 + clockState.minute
+      const todayKey = getDayKey(clockState)
+
+      const nextTodayMinute = getNextRefreshMinuteFromPrayerMap(todayPrayerTime, currentTimeMinutes)
+
+      if (nextTodayMinute !== null) {
+        nextPrayerRefreshBoundary = {
+          dayKey: todayKey,
+          minute: nextTodayMinute
+        }
+        return
+      }
+
+      const tomorrowDate = new Date(clockState.referenceDate)
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+      const tomorrowClock = getReferenceClockState(tomorrowDate)
+      const tomorrowKey = getDayKey(tomorrowClock)
+
+      nextPrayerRefreshBoundary = {
+        dayKey: tomorrowKey,
+        minute: 0
+      }
+    }
+
+    const shouldRefreshPrayerTimes = (clockState) => {
+      if (!nextPrayerRefreshBoundary) {
+        return true
+      }
+
+      const currentDayKey = getDayKey(clockState)
+      const currentTimeMinutes = clockState.hour * 60 + clockState.minute
+
+      if (currentDayKey > nextPrayerRefreshBoundary.dayKey) {
+        return true
+      }
+
+      if (currentDayKey === nextPrayerRefreshBoundary.dayKey && currentTimeMinutes >= nextPrayerRefreshBoundary.minute) {
+        return true
+      }
+
+      return false
+    }
+
+    const checkPrayerTimeRefreshBoundary = () => {
+      const referenceClock = getReferenceClockState(new Date())
+
+      if (shouldRefreshPrayerTimes(referenceClock)) {
+        updatePrayerTimes(referenceClock)
+      }
+    }
+
+    // Update prayer times for the current day
+    const updatePrayerTimes = (clockState = getReferenceClockState(new Date())) => {
+      const currentTimeMinutes = clockState.hour * 60 + clockState.minute
+
+      const todayTimes = calculatePrayerTimes(clockState.referenceDate, props.offset)
+      const tomorrow = new Date(clockState.referenceDate)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const tomorrowTimes = calculatePrayerTimes(tomorrow, props.offset)
+
+      setPrayerMap(todayPrayerTime, todayTimes)
+      setPrayerMap(tomorrowPrayerTime, tomorrowTimes)
+
+      prayerNames.value.forEach((prayer) => {
+        const todayTime = todayPrayerTime[prayer]
+        const tomorrowTime = tomorrowPrayerTime[prayer]
+        const prayerTimeMinutes = getPrayerMinutes(todayTime)
+
+        if (prayerTimeMinutes === null) {
+          currentPrayerTime[prayer] = tomorrowTime || '00:00'
+          return
+        }
+
+        currentPrayerTime[prayer] = currentTimeMinutes < prayerTimeMinutes
+          ? todayTime
+          : (tomorrowTime || todayTime)
+      })
+
+      updateUpcomingPrayerState(currentTimeMinutes)
+      scheduleNextPrayerTimeRefresh(clockState)
+    }
+
+    const checkPrayerTimeMatch = () => {
+      checkPrayerTime()
+    }
+
+    const getIqamahTargetMinutes = (prayerName, prayerTimeMinutes, iqamahThreshold) => {
+      const configuredTarget = prayerTimeMinutes + Number(iqamahThreshold || 0)
+
+      if (prayerName !== 'Dhuhr') {
+        return configuredTarget
+      }
+
+      // Dhuhr iqamah should not start before 12:15 PM.
+      return Math.max(configuredTarget, 12 * 60 + 15)
     }
 
     const startCountdownToIqamah = (prayerName, timeout) => {
@@ -649,6 +655,7 @@ export default defineComponent({
     const updateIqamahConfig = (newConfig) => {
       iqamahConfig.value = { ...newConfig }
       localStorage.setItem('iqamahConfig', JSON.stringify(iqamahConfig.value))
+      updatePrayerTimes()
     }
 
     const updateEnableScreenSaver = (newVal) => {
@@ -750,30 +757,20 @@ export default defineComponent({
 
     const updateTime = () => {
       const now = new Date()
-      // Update the current hour and minute values first
-      currentHour.value = now.getHours()
-      currentMinute.value = now.getMinutes()
+      const referenceClock = getReferenceClockState(now)
+      const currentTimeMinutes = referenceClock.hour * 60 + referenceClock.minute
 
-      // Format the time display
-      const hours = String(currentHour.value).padStart(2, '0')
-      const minutes = String(currentMinute.value).padStart(2, '0')
-      const seconds = String(now.getSeconds()).padStart(2, '0')
-      currentTime.value = `${hours}:${minutes}:${seconds}`
-
-      // Format date as "Day, Month DD, YYYY"
-      const options = {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }
-      currentDate.value = now.toLocaleDateString('en-US', options)
-      currentDay.value = now.toLocaleDateString('en-US', {weekday: 'long'})
+      currentHour.value = referenceClock.hour
+      currentMinute.value = referenceClock.minute
+      currentTime.value = referenceClock.time
+      currentDate.value = referenceClock.date
+      currentDay.value = referenceClock.weekday
 
       // Calculate Hijri date
-      hijriDate.value = calculateHijriDate(now)
+      hijriDate.value = calculateHijriDate(referenceClock.referenceDate)
 
-      // Check if we need to update prayer times (after Isha)
-      updatePrayerTimes()
+      // Keep upcoming countdown in sync every second without reassigning prayer day mapping.
+      updateUpcomingPrayerState(currentTimeMinutes)
 
       // Check for prayer time match and update countdown
       if (prayerStatus.value === 'normal') {
@@ -820,15 +817,17 @@ export default defineComponent({
           continue
         }
 
-        const timeString = currentPrayerTime[name]
+        const timeString = todayPrayerTime[name]
         const iqamahThreshold = iqamahConfig.value[name]
 
         if (timeString && timeString !== '00:00') {
           const [hours, minutes] = timeString.split(':').map(Number)
           const prayerTimeMinutes = hours * 60 + minutes
+          const iqamahTargetMinutes = getIqamahTargetMinutes(name, prayerTimeMinutes, iqamahThreshold)
+          const remainingIqamahMinutes = iqamahTargetMinutes - currentTimeMinutes
 
-          if (currentTimeMinutes >= prayerTimeMinutes && prayerTimeMinutes + iqamahThreshold - currentTimeMinutes >= 0) {
-            startCountdownToIqamah(name, prayerTimeMinutes + iqamahThreshold - currentTimeMinutes)
+          if (currentTimeMinutes >= prayerTimeMinutes && remainingIqamahMinutes >= 0) {
+            startCountdownToIqamah(name, remainingIqamahMinutes)
             return
           }
         } else {
@@ -1007,7 +1006,6 @@ export default defineComponent({
       notifEnabled,
       iqamahConfig,
       enableScreenSaver,
-      ramadhanOverrideActive,
       prayerTableData,
       mainClockSize,
       prayerTimeFontSize,
@@ -1018,7 +1016,6 @@ export default defineComponent({
       updateOffset,
       updateHijriOffset,
       refreshHijriData,
-      clusterSet,
       updatePrayerTimes,
       checkPrayerTimeMatch,
       startCountdownToIqamah,

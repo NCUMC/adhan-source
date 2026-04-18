@@ -12,20 +12,11 @@
 
 <script>
 import { ref } from 'vue'
+import { DEFAULT_LOCATION_VALUE } from 'src/utils/prayerTimes'
 
 export default {
-  data () {
-    return {
-      locationList: [
-        {label: 'Taipei', value: 0},
-        {label: 'Taoyuan, Yanmai', value: 2},
-        {label: 'Hsinchu, Taichung, Changhua', value: 3},
-        {label: 'Chiayi, Tainan, Kaoshiung, Pingtung', value: 5},
-      ]
-    }
-  },
   setup () {
-    const offset = ref(2)
+    const offset = ref(DEFAULT_LOCATION_VALUE)
 
     return {
       offset
@@ -36,14 +27,14 @@ export default {
     try {
       offset = parseInt(localStorage.getItem('offset'))
       if (isNaN(offset)) {
-        offset = 2
+        offset = DEFAULT_LOCATION_VALUE
       }
       localStorage.setItem('offset', offset)
       this.offset = offset
     } catch (err) {
       console.log(err)
-      localStorage.setItem('offset', 2)
-      this.offset = 2
+      localStorage.setItem('offset', DEFAULT_LOCATION_VALUE)
+      this.offset = DEFAULT_LOCATION_VALUE
     }
   },
   methods: {
