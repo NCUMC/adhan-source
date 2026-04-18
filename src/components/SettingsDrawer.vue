@@ -282,6 +282,17 @@
         icon="download"
         label="Export Daily Timetable CSV"
         class="full-width q-mt-sm"
+        />
+      <div class="text-h6 q-mt-lg">
+        Info
+      </div>
+      <q-btn
+        to="/prayer-time-update"
+        color="white"
+        text-color="secondary"
+        icon="campaign"
+        label="Prayer Time Update"
+        class="full-width q-mt-sm"
       />
       <div v-if="$q.platform.is.mobile">
         <div class="text-subtitle1 q-mt-md">Contact Us</div>

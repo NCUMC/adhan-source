@@ -6,6 +6,10 @@ const routes = [
             {
                 path: '',
                 component: () => import ('pages/IndexPage.vue')
+            },
+            {
+                path: 'prayer-time-update',
+                component: () => import ('pages/PrayerTimeUpdatePage.vue')
             }
         ]
     },
