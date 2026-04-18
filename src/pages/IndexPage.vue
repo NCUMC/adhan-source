@@ -567,6 +567,16 @@ export default defineComponent({
         const [hours, minutes] = todayTime.split(':').map(Number)
         const prayerTimeMinutes = hours * 60 + minutes
 
+        // Keep showing today's time for the currently active prayer
+        // while it is in countdown / in-progress state.
+        const isCurrentPrayerActive =
+          currentPrayerInProgress.value === prayer &&
+          (prayerStatus.value === 'countdown' || prayerStatus.value === 'in-progress')
+
+        if (isCurrentPrayerActive) {
+          return todayTime
+        }
+
         if (currentTimeMinutes >= prayerTimeMinutes) {
           return tomorrowTime || todayTime
         }
