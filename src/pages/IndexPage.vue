@@ -137,6 +137,23 @@
     <!-- <q-page-sticky v-show="!notifEnabled" position="bottom-right" :offset="[18, 18]">
       <q-btn @click="requestNotif" fab icon="notifications" color="secondary" />
     </q-page-sticky> -->
+    <!-- Friday Jumu'ah Dhuhr: Full-screen slideshow overlay -->
+    <div v-if="isFridayDhuhrInProgress" class="fixed-full bg-grey-10 flex flex-center" style="z-index: 99" @click="toggleRightDrawer">
+      <div v-if="currentImage" class="rotating-image overflow-hidden" style="height:100vh;width:100vw;">
+        <q-img
+          :src="currentImage"
+          class="full-height"
+          fit="contain"
+        />
+      </div>
+      <div class="fixed-bottom text-center q-pb-md">
+        <span class="text-h2 text-white text-weight-normal">{{ currentMessage }}</span>
+      </div>
+      <div class="fixed-bottom-right q-pa-sm bg-white rounded-borders">
+        <span @click.stop="openURL('https://www.instagram.com/ncu.muslimclub')" class="cursor-pointer text-subtitle1"><q-icon name="fa-brands fa-instagram" class="q-mr-xs" color="secondary"/>@ncu.muslimclub</span>
+        <span @click.stop="openURL('mailto:ncumuslimclub@gmail.com')" class="cursor-pointer q-ml-md text-subtitle1"><q-icon name="mail" class="q-mr-xs" color="secondary"/>ncumuslimclub@gmail.com</span>
+      </div>
+    </div>
   </q-page>
 </template>
 
@@ -246,6 +263,11 @@ export default defineComponent({
     const prayerTimeFontSize = ref(Number(localStorage.getItem('prayerTimeFontSize')) || 8)
     const prayerNameFontSize = ref(Number(localStorage.getItem('prayerNameFontSize')) || 5)
     const longBreak = ref(false)
+    const isFridayDhuhrInProgress = computed(() =>
+      currentDay.value === 'Friday' &&
+      currentPrayerInProgress.value === 'Dhuhr' &&
+      prayerStatus.value === 'in-progress'
+    )
 
     // Prayer time data
     const currentPrayerTime = reactive({
@@ -642,9 +664,23 @@ export default defineComponent({
       prayerStatus.value = 'in-progress'
       currentPrayerInProgress.value = prayerName
 
+      let durationMs = 15 * 60 * 1000 // default 15 minutes
+
+      // On Fridays, Dhuhr prayer in progress lasts until 1 PM
+      if (prayerName === 'Dhuhr' && currentDay.value === 'Friday') {
+        const currentTimeMinutes = currentHour.value * 60 + currentMinute.value
+        const onepmMinutes = 13 * 60
+        const minutesUntil1PM = onepmMinutes - currentTimeMinutes
+        if (minutesUntil1PM > 0) {
+          durationMs = minutesUntil1PM * 60 * 1000
+        } else {
+          durationMs = 15 * 60 * 1000
+        }
+      }
+
       setTimeout(() => {
         returnToNormal()
-      }, 15 * 60 * 1000)
+      }, durationMs)
     }
 
     const returnToNormal = () => {
@@ -849,10 +885,7 @@ export default defineComponent({
           startPrayerInProgress(currentPrayerInProgress.value)
         }
       } else if (prayerStatus.value === 'in-progress') {
-        // After 15 minutes, return to normal
-        setTimeout(() => {
-          returnToNormal()
-        }, 15 * 60 * 1000) // 15 minutes
+        // Prayer in-progress duration is managed by the timeout set in startPrayerInProgress
       }
     }
 
@@ -1029,6 +1062,7 @@ export default defineComponent({
       updateMessages,
       updateImages,
       longBreak,
+      isFridayDhuhrInProgress,
       openURL,
       sheetsUrl,
       syncConfigFromSheets
