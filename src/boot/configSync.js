@@ -158,6 +158,10 @@ function buildSheetUrl(baseUrl, gid) {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`
 }
 
+function isValidTimeHHMM(value) {
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(value))
+}
+
 /**
  * Main sync function
  * Fetches all configs from Google Sheets and returns parsed data
@@ -272,6 +276,7 @@ export function applyConfig(syncedData) {
     prayerNameFontSize: null,
     hijriOffset: null,
     enableScreenSaver: null,
+    fridayDhuhrFreezeEndTime: null,
     iqamahConfig: null,
     messages: null,
     images: null
@@ -339,6 +344,27 @@ export function applyConfig(syncedData) {
       localStorage.setItem('enableScreenSaver', JSON.stringify(mainConfig.enableScreenSaver))
       applied.enableScreenSaver = mainConfig.enableScreenSaver
       hasChanges = true
+    }
+  }
+
+  const fridayFreezeSetting =
+    mainConfig.fridayDhuhrFreezeEndTime !== undefined
+      ? mainConfig.fridayDhuhrFreezeEndTime
+      : mainConfig.friday_dhuhr_freeze_end_time
+
+  if (fridayFreezeSetting !== undefined) {
+    const normalizedFreezeSetting = String(fridayFreezeSetting)
+
+    if (!isValidTimeHHMM(normalizedFreezeSetting)) {
+      console.warn('Invalid fridayDhuhrFreezeEndTime format from config, expected HH:MM, got:', normalizedFreezeSetting)
+    } else {
+    const current = localStorage.getItem('fridayDhuhrFreezeEndTime') || '13:00'
+    if (current !== normalizedFreezeSetting) {
+      console.log('fridayDhuhrFreezeEndTime changed from', current, 'to', normalizedFreezeSetting)
+      localStorage.setItem('fridayDhuhrFreezeEndTime', normalizedFreezeSetting)
+      applied.fridayDhuhrFreezeEndTime = normalizedFreezeSetting
+      hasChanges = true
+    }
     }
   }
 

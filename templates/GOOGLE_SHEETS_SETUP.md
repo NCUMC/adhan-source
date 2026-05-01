@@ -25,6 +25,7 @@ prayerTimeFontSize,11
 prayerNameFontSize,7
 hijriOffset,2
 enableScreenSaver,false
+fridayDhuhrFreezeEndTime,13:00
 fajrIqamah,20
 dhuhrIqamah,10
 asrIqamah,10

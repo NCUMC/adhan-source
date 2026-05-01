@@ -182,6 +182,18 @@
             @update:model-value="updateEnableScreenSaver"
             label="Enable Screen Saver"
           />
+          <div class="q-mb-sm">
+            <label>Friday Dhuhr Clock Freeze Until</label>
+            <q-input
+              dense
+              filled
+              bg-color="white"
+              label-color="white"
+              type="time"
+              v-model="localFridayDhuhrFreezeEndTime"
+              hint="Used on Friday Dhuhr only (e.g., 13:00)"
+            />
+          </div>
           <div v-for="(image, index) in localImages" :key="index" class="q-mb-sm">
             <div class="row items-center q-gutter-sm">
               <q-input
@@ -350,6 +362,10 @@ export default defineComponent({
         type: Boolean,
         default: false
     },
+    fridayDhuhrFreezeEndTime: {
+      type: String,
+      default: '13:00'
+    },
     sheetsUrl: {
         type: String,
         default: ''
@@ -367,6 +383,7 @@ export default defineComponent({
     'update:messages',
     'update:images',
     'update:enableScreenSaver',
+    'update:friday-dhuhr-freeze-end-time',
     'update:sheets-url',
     'sync-config'
   ],
@@ -434,6 +451,16 @@ export default defineComponent({
       set(value) {
         localStorage.setItem('prayerNameFontSize', value)
         emit('update:prayer-name-font-size', value)
+      }
+    })
+
+    const localFridayDhuhrFreezeEndTime = computed({
+      get() {
+        return props.fridayDhuhrFreezeEndTime || '13:00'
+      },
+      set(value) {
+        localStorage.setItem('fridayDhuhrFreezeEndTime', value)
+        emit('update:friday-dhuhr-freeze-end-time', value)
       }
     })
 
@@ -691,6 +718,7 @@ export default defineComponent({
       localPrayerNameFontSize,
       localPrayerTimeFontSize,
       localMainClockSize,
+      localFridayDhuhrFreezeEndTime,
       closeDrawer,
       updateOffset,
       updateHijriOffset,

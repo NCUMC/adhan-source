@@ -66,6 +66,7 @@ prayerTimeFontSize,8
 prayerNameFontSize,5
 hijriOffset,0
 enableScreenSaver,false
+fridayDhuhrFreezeEndTime,13:00
 fajrIqamah,10
 dhuhrIqamah,10
 asrIqamah,10
@@ -86,6 +87,7 @@ ishaIqamah,10
 
 **Features:**
 - **enableScreenSaver** (boolean): Enable screen saver mode during long breaks between prayers (true/false)
+- **fridayDhuhrFreezeEndTime** (string, HH:MM): End time for Friday Dhuhr clock-only freeze mode
 
 **Iqamah Timings (minutes after prayer call):**
 - **fajrIqamah** (number): Minutes after Fajr call

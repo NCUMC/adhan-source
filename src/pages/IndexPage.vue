@@ -48,6 +48,7 @@
         :iqamah-config="iqamahConfig"
         :messages="messages"
         :images="images"
+        :friday-dhuhr-freeze-end-time="fridayDhuhrFreezeEndTime"
         :sheets-url="sheetsUrl"
         @update:offset="updateOffset"
         @update:hijri-offset="updateHijriOffset"
@@ -59,6 +60,7 @@
         @update:messages="updateMessages"
         @update:images="updateImages"
         @update:enableScreenSaver="updateEnableScreenSaver"
+        @update:friday-dhuhr-freeze-end-time="updateFridayDhuhrFreezeEndTime"
         @update:sheets-url="(val) => sheetsUrl = val"
         @sync-config="syncConfigFromSheets"
       />
@@ -87,19 +89,19 @@
        <div class="col-sm-8 col-xs-12 bg-grey-10 text-center flex flex-center gt-xs overflow-hidden" v-if="$q.platform.is.desktop">
          <div>
            <!-- Normal status: Show upcoming prayer and rotating images -->
-           <div v-if="prayerStatus === 'normal'" :class="longBreak ? 'fixed-full bg-black' : ''" style="z-index: 99" @click="toggleRightDrawer">
-              <div v-if="showUpcomingCountdown" class="text-center full-width full-height" :style="longBreak ? ('margin-top:' + ((upcomingMinute % 3) + 1) * 10 + 'vh') : ''">
-                <div v-if="longBreak" class="text-white" style='font-size:5vh;line-height:1em'>{{ currentDate }} | {{ hijriDate }}</div>
-                <div v-if="longBreak" class="text-white" :style="'font-size:' + mainClockSize + 'vh;line-height:1.2em'">{{ currentTime}}</div>
-                <div class="text-h1 text-white">{{upcomingPrayer}} {{ currentPrayerTime[upcomingPrayer] }}</div>
-                <div>
+           <div v-if="prayerStatus === 'normal'" :class="isScreenSaverActive ? 'fixed-full bg-black' : ''" style="z-index: 99" @click="toggleRightDrawer">
+              <div v-if="showUpcomingCountdown || isFridayDhuhrFreezeActive" class="text-center full-width full-height" :style="isScreenSaverActive ? ('margin-top:' + ((upcomingMinute % 3) + 1) * 10 + 'vh') : ''">
+                <div v-if="isScreenSaverActive" class="text-white" style='font-size:5vh;line-height:1em'>{{ currentDate }} | {{ hijriDate }}</div>
+                <div v-if="isScreenSaverActive" class="text-white" :style="'font-size:' + mainClockSize + 'vh;line-height:1.2em'">{{ currentTime}}</div>
+                <div v-if="!isFridayDhuhrFreezeActive" class="text-h1 text-white">{{upcomingPrayer}} {{ currentPrayerTime[upcomingPrayer] }}</div>
+                <div v-if="!isFridayDhuhrFreezeActive">
                   <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'" v-if="upcomingHour > 0">{{String(upcomingHour).padStart(2, '0')}}</span>
                   <span class="text-h2 text-white" v-if="upcomingHour > 0">h</span>
                   <span class="text-white text-bold" :style="'font-size:' + mainClockSize + 'vh'">{{String(upcomingMinute).padStart(2, '0')}}</span>
                   <span class="text-h2 text-white">m</span>
                 </div>
               </div>
-             <div v-if="currentImage && !showUpcomingCountdown" class="rotating-image overflow-hidden" :style="longBreak? 'height: 100vh;width: 100vw;' : 'height: 82vh;width: 67vw;'">
+             <div v-if="currentImage && !showUpcomingCountdown && !isFridayDhuhrFreezeActive" class="rotating-image overflow-hidden" :style="isScreenSaverActive ? 'height: 100vh;width: 100vw;' : 'height: 82vh;width: 67vw;'">
                <q-img
                  :src="currentImage"
                  :ratio="1"
@@ -288,6 +290,7 @@ export default defineComponent({
     const iqamahConfig = ref(JSON.parse(localStorage.getItem('iqamahConfig') || '{"Fajr":10,"Dhuhr":10,"Asr":10,"Maghrib":10,"Isha":10}'))
   // Load saved screen saver setting (boolean)
   const enableScreenSaver = ref(false)
+  const fridayDhuhrFreezeEndTime = ref(localStorage.getItem('fridayDhuhrFreezeEndTime') || '13:00')
   const screenSaverReady = ref(false)
     // Google Sheets sync configuration
     const sheetsUrl = ref(localStorage.getItem('sheetsUrl') || '')
@@ -320,6 +323,17 @@ export default defineComponent({
 
     const rotateImage = () => {
       if (images.value.length === 0) return
+
+      if (isFridayDhuhrFreezeActive.value) {
+        showUpcomingCountdown.value = true
+
+        if (imageInterval) clearTimeout(imageInterval)
+
+        imageInterval = setTimeout(() => {
+          rotateImage()
+        }, 1000)
+        return
+      }
 
       // Set up the display duration:
       // - 1 minute (60000ms) for countdown
@@ -481,6 +495,26 @@ export default defineComponent({
       return hours * 60 + minutes
     }
 
+    const parseClockStringToMinutes = (timeString) => {
+      if (!timeString || typeof timeString !== 'string') {
+        return 13 * 60
+      }
+
+      const parts = timeString.split(':')
+      if (parts.length !== 2) {
+        return 13 * 60
+      }
+
+      const hours = Number(parts[0])
+      const minutes = Number(parts[1])
+
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return 13 * 60
+      }
+
+      return Math.min(Math.max(hours, 0), 23) * 60 + Math.min(Math.max(minutes, 0), 59)
+    }
+
     const updateUpcomingPrayerState = (currentTimeMinutes) => {
       const upcoming = findUpcomingPrayer(currentTimeMinutes, todayPrayerTime)
 
@@ -624,6 +658,23 @@ export default defineComponent({
       return Math.max(configuredTarget, 12 * 60 + 15)
     }
 
+    const isFridayReference = () => getReferenceClockState().weekday === 'Friday'
+
+    const isFridayDhuhrFreezeActive = computed(() => {
+      const dhuhrMinutes = getPrayerMinutes(todayPrayerTime.Dhuhr)
+      if (dhuhrMinutes === null) {
+        return false
+      }
+
+      const currentTimeMinutes = currentHour.value * 60 + currentMinute.value
+      const freezeEndMinutes = parseClockStringToMinutes(fridayDhuhrFreezeEndTime.value)
+      return isFridayReference() && currentTimeMinutes >= dhuhrMinutes && currentTimeMinutes < freezeEndMinutes
+    })
+
+    const isScreenSaverActive = computed(() => {
+      return longBreak.value || isFridayDhuhrFreezeActive.value
+    })
+
     const startCountdownToIqamah = (prayerName, timeout) => {
       if (prayerName === 'Sunrise') return
 
@@ -662,6 +713,11 @@ export default defineComponent({
       // newVal is expected to be a boolean
       enableScreenSaver.value = !!newVal
       localStorage.setItem('enableScreenSaver', JSON.stringify(enableScreenSaver.value))
+    }
+
+    const updateFridayDhuhrFreezeEndTime = (newVal) => {
+      fridayDhuhrFreezeEndTime.value = newVal || '13:00'
+      localStorage.setItem('fridayDhuhrFreezeEndTime', fridayDhuhrFreezeEndTime.value)
     }
 
     const updateMessages = (newMessages) => {
@@ -817,6 +873,11 @@ export default defineComponent({
           continue
         }
 
+        // Friday Dhuhr uses the screensaver freeze mode directly (no iqamah countdown).
+        if (name === 'Dhuhr' && isFridayDhuhrFreezeActive.value) {
+          continue
+        }
+
         const timeString = todayPrayerTime[name]
         const iqamahThreshold = iqamahConfig.value[name]
 
@@ -848,11 +909,6 @@ export default defineComponent({
           // Countdown finished, start prayer in progress
           startPrayerInProgress(currentPrayerInProgress.value)
         }
-      } else if (prayerStatus.value === 'in-progress') {
-        // After 15 minutes, return to normal
-        setTimeout(() => {
-          returnToNormal()
-        }, 15 * 60 * 1000) // 15 minutes
       }
     }
 
@@ -926,6 +982,10 @@ export default defineComponent({
         if (applied.enableScreenSaver !== null && applied.enableScreenSaver !== undefined) {
           console.log('Updating enableScreenSaver to:', applied.enableScreenSaver)
           enableScreenSaver.value = applied.enableScreenSaver
+        }
+        if (applied.fridayDhuhrFreezeEndTime !== null && applied.fridayDhuhrFreezeEndTime !== undefined) {
+          console.log('Updating fridayDhuhrFreezeEndTime to:', applied.fridayDhuhrFreezeEndTime)
+          fridayDhuhrFreezeEndTime.value = applied.fridayDhuhrFreezeEndTime
         }
         if (applied.iqamahConfig !== null && applied.iqamahConfig !== undefined) {
           console.log('Updating iqamahConfig to:', applied.iqamahConfig)
@@ -1006,6 +1066,7 @@ export default defineComponent({
       notifEnabled,
       iqamahConfig,
       enableScreenSaver,
+      fridayDhuhrFreezeEndTime,
       prayerTableData,
       mainClockSize,
       prayerTimeFontSize,
@@ -1023,12 +1084,15 @@ export default defineComponent({
       returnToNormal,
       updateIqamahConfig,
       updateEnableScreenSaver,
+      updateFridayDhuhrFreezeEndTime,
       requestNotif,
       messages,
       currentMessage,
       updateMessages,
       updateImages,
       longBreak,
+      isFridayDhuhrFreezeActive,
+      isScreenSaverActive,
       openURL,
       sheetsUrl,
       syncConfigFromSheets
